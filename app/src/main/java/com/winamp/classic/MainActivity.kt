@@ -10,49 +10,37 @@ import android.net.Uri
 import android.os.Build
 import android.os.Bundle
 import android.os.IBinder
-import android.view.View
-import android.widget.PopupMenu
+import android.util.Base64
+import android.webkit.JavascriptInterface
+import android.webkit.ValueCallback
+import android.webkit.WebChromeClient
+import android.webkit.WebSettings
+import android.webkit.WebView
+import android.webkit.WebViewClient
 import android.widget.Toast
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.appcompat.app.AlertDialog
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.content.ContextCompat
+import androidx.documentfile.provider.DocumentFile
 import com.winamp.classic.audio.AudioMetadataHelper
 import com.winamp.classic.audio.AudioPlaybackService
-import com.winamp.classic.audio.PlaylistManager
 import com.winamp.classic.databinding.ActivityMainBinding
 import com.winamp.classic.model.Track
-import com.winamp.classic.ui.WinampSkinManager
+import java.io.InputStream
 
 class MainActivity : AppCompatActivity() {
 
     private lateinit var binding: ActivityMainBinding
-    private lateinit var playlistManager: PlaylistManager
-
     private var playbackService: AudioPlaybackService? = null
     private var isBound = false
+    private var activeFilePathCallback: ValueCallback<Array<Uri>>? = null
 
     private val serviceConnection = object : ServiceConnection {
         override fun onServiceConnected(name: ComponentName?, service: IBinder?) {
             val binder = service as AudioPlaybackService.LocalBinder
-            val srv = binder.getService()
-            playbackService = srv
+            playbackService = binder.getService()
             isBound = true
-
-            playlistManager = srv.playlistManager
-            setupServiceListeners()
-
-            val current = srv.currentTrack ?: playlistManager.getCurrentTrack()
-            if (current != null) {
-                updateTrackDisplay(current, playlistManager.currentIndex)
-                if (srv.isPlaying) {
-                    binding.winampMainCanvasPlayer.isPlaying = true
-                    binding.winampMainCanvasPlayer.isPaused = false
-                }
-            } else {
-                updateEmptyDisplay()
-            }
-            updatePlaylistState()
         }
 
         override fun onServiceDisconnected(name: ComponentName?) {
@@ -65,66 +53,28 @@ class MainActivity : AppCompatActivity() {
         ActivityResultContracts.OpenMultipleDocuments()
     ) { uris: List<Uri> ->
         if (uris.isNotEmpty()) {
+            Toast.makeText(this, "Loading ${uris.size} tracks into Webamp...", Toast.LENGTH_SHORT).show()
             for (uri in uris) {
                 try {
                     contentResolver.takePersistableUriPermission(uri, Intent.FLAG_GRANT_READ_URI_PERMISSION)
                 } catch (e: Exception) {
                     e.printStackTrace()
                 }
+                sendUriToWebamp(uri)
             }
-            playlistManager.addTracksFromUris(uris)
-            updatePlaylistState()
-            Toast.makeText(this, "Added ${uris.size} tracks to Winamp", Toast.LENGTH_SHORT).show()
         }
+        activeFilePathCallback?.onReceiveValue(null)
+        activeFilePathCallback = null
     }
 
     private val folderPickerLauncher = registerForActivityResult(
         ActivityResultContracts.OpenDocumentTree()
     ) { folderUri: Uri? ->
         folderUri?.let { uri ->
-            try {
-                contentResolver.takePersistableUriPermission(uri, Intent.FLAG_GRANT_READ_URI_PERMISSION)
-            } catch (e: Exception) {
-                e.printStackTrace()
-            }
-            Toast.makeText(this, "Scanning folder for music...", Toast.LENGTH_SHORT).show()
-            val found = playlistManager.scanFolderForAudio(uri)
-            if (found.isNotEmpty()) {
-                playlistManager.addTracks(found)
-                updatePlaylistState()
-                Toast.makeText(this, "Found & added ${found.size} tracks from folder", Toast.LENGTH_LONG).show()
-            } else {
-                Toast.makeText(this, "No supported audio files found in selected folder", Toast.LENGTH_SHORT).show()
-            }
+            scanAndSendFolderToWebamp(uri)
         }
-    }
-
-    private val loadM3uLauncher = registerForActivityResult(
-        ActivityResultContracts.OpenDocument()
-    ) { m3uUri: Uri? ->
-        m3uUri?.let { uri ->
-            val imported = playlistManager.importFromM3u(uri)
-            if (imported.isNotEmpty()) {
-                playlistManager.addTracks(imported)
-                updatePlaylistState()
-                Toast.makeText(this, "Loaded ${imported.size} tracks from playlist file", Toast.LENGTH_SHORT).show()
-            } else {
-                Toast.makeText(this, "Failed to parse playlist file", Toast.LENGTH_SHORT).show()
-            }
-        }
-    }
-
-    private val saveM3uLauncher = registerForActivityResult(
-        ActivityResultContracts.CreateDocument("audio/x-mpegurl")
-    ) { destUri: Uri? ->
-        destUri?.let { uri ->
-            val success = playlistManager.exportToM3u(uri)
-            if (success) {
-                Toast.makeText(this, "Playlist saved as .m3u successfully", Toast.LENGTH_SHORT).show()
-            } else {
-                Toast.makeText(this, "Error saving playlist", Toast.LENGTH_SHORT).show()
-            }
-        }
+        activeFilePathCallback?.onReceiveValue(null)
+        activeFilePathCallback = null
     }
 
     private val permissionLauncher = registerForActivityResult(
@@ -132,7 +82,7 @@ class MainActivity : AppCompatActivity() {
     ) { permissions ->
         val granted = permissions.entries.all { it.value }
         if (granted) {
-            Toast.makeText(this, "Audio permissions granted", Toast.LENGTH_SHORT).show()
+            Toast.makeText(this, "Permissions granted", Toast.LENGTH_SHORT).show()
         }
     }
 
@@ -141,353 +91,170 @@ class MainActivity : AppCompatActivity() {
         binding = ActivityMainBinding.inflate(layoutInflater)
         setContentView(binding.root)
 
-        WinampSkinManager.loadSkin(this)
-        playlistManager = PlaylistManager(this)
-
-        setupCanvasPlayerControls()
-        setupCanvasEqualizerControls()
-        setupCanvasPlaylistControls()
-
+        setupWebView()
         checkPermissions()
         startAndBindService()
-        updateEmptyDisplay()
     }
 
-    private fun setupCanvasPlayerControls() {
-        binding.winampMainCanvasPlayer.apply {
-            onPlayClickListener = {
-                val track = playlistManager.getCurrentTrack()
-                if (track != null) {
-                    if (playbackService?.currentTrack?.id == track.id && playbackService?.isPlaying == false) {
-                        playbackService?.resume()
-                    } else {
-                        playbackService?.playTrack(track)
-                    }
-                    updateTrackDisplay(track, playlistManager.currentIndex)
-                } else {
-                    Toast.makeText(this@MainActivity, "Playlist is empty. Add music files first!", Toast.LENGTH_SHORT).show()
+    private fun setupWebView() {
+        binding.webViewWebamp.apply {
+            settings.apply {
+                javaScriptEnabled = true
+                domStorageEnabled = true
+                allowFileAccess = true
+                allowContentAccess = true
+                allowFileAccessFromFileURLs = true
+                allowUniversalAccessFromFileURLs = true
+                mediaPlaybackRequiresUserGesture = false
+                cacheMode = WebSettings.LOAD_DEFAULT
+            }
+
+            webChromeClient = object : WebChromeClient() {
+                override fun onShowFileChooser(
+                    webView: WebView?,
+                    filePathCallback: ValueCallback<Array<Uri>>?,
+                    fileChooserParams: FileChooserParams?
+                ): Boolean {
+                    activeFilePathCallback?.onReceiveValue(null)
+                    activeFilePathCallback = filePathCallback
+
+                    showAddOptionsDialog()
+                    return true
                 }
             }
 
-            onPauseClickListener = {
-                playbackService?.pause()
-                isPlaying = false
-                isPaused = true
-            }
+            webViewClient = object : WebViewClient() {}
 
-            onStopClickListener = {
-                playbackService?.stop()
-                isPlaying = false
-                isPaused = false
-                progressRatio = 0f
-                timeText = "00:00"
-            }
-
-            onNextClickListener = {
-                val track = playlistManager.nextTrack()
-                if (track != null) {
-                    updateTrackDisplay(track, playlistManager.currentIndex)
-                    playbackService?.playTrack(track)
-                }
-            }
-
-            onPrevClickListener = {
-                val track = playlistManager.previousTrack()
-                if (track != null) {
-                    updateTrackDisplay(track, playlistManager.currentIndex)
-                    playbackService?.playTrack(track)
-                }
-            }
-
-            onEjectClickListener = { showAddPopupMenu(this) }
-            onShuffleToggleListener = {
-                playlistManager.isShuffle = isShuffle
-                Toast.makeText(this@MainActivity, "Shuffle: ${if (isShuffle) "ON" else "OFF"}", Toast.LENGTH_SHORT).show()
-            }
-            onRepeatToggleListener = {
-                playlistManager.isRepeat = isRepeat
-                Toast.makeText(this@MainActivity, "Repeat: ${if (isRepeat) "ON" else "OFF"}", Toast.LENGTH_SHORT).show()
-            }
-
-            onEqToggleListener = {
-                val vis = binding.winampEqualizerCanvas.visibility
-                binding.winampEqualizerCanvas.visibility = if (vis == View.VISIBLE) View.GONE else View.VISIBLE
-            }
-
-            onPlToggleListener = {
-                val vis = binding.winampPlaylistCanvas.visibility
-                binding.winampPlaylistCanvas.visibility = if (vis == View.VISIBLE) View.GONE else View.VISIBLE
-            }
-
-            onVolumeChangeListener = { volRatio ->
-                playbackService?.setVolume(volRatio)
-            }
-
-            onBalanceChangeListener = { balRatio ->
-                val bal = (balRatio - 0.5f) * 2f
-                playbackService?.setBalance(bal)
-            }
-
-            onSeekChangeListener = { ratio ->
-                playbackService?.currentTrack?.let { track ->
-                    val targetMs = (ratio * track.durationMs).toLong()
-                    playbackService?.seekTo(targetMs)
-                }
-            }
+            addJavascriptInterface(AndroidBridge(), "AndroidBridge")
+            loadUrl("file:///android_asset/webamp/index.html")
         }
     }
 
-    private fun setupCanvasEqualizerControls() {
-        binding.winampEqualizerCanvas.apply {
-            onBandLevelChangedListener = { bandIdx, levelDb ->
-                playbackService?.setBandLevel(bandIdx, levelDb)
-            }
-
-            onEqEnabledChangedListener = { enabled ->
-                playbackService?.setEqEnabled(enabled)
-            }
-
-            onPresetClickListener = {
-                val popup = PopupMenu(this@MainActivity, this)
-                val presets = listOf("Flat", "Rock", "Pop", "Techno", "Dance", "Soft", "Classical", "Full Bass")
-                for (p in presets) {
-                    popup.menu.add(p)
-                }
-                popup.setOnMenuItemClickListener { item ->
-                    val name = item.title.toString()
-                    applyPresetValues(name)
-                    true
-                }
-                popup.show()
-            }
-        }
-    }
-
-    private fun applyPresetValues(presetName: String) {
-        val levels = when (presetName) {
-            "Rock" -> listOf(4, 3, 2, 0, -1, 1, 3, 4, 4, 4)
-            "Pop" -> listOf(-1, 1, 3, 4, 3, 0, -1, -1, 0, 1)
-            "Techno" -> listOf(4, 3, 0, -2, -2, 0, 3, 4, 4, 3)
-            "Dance" -> listOf(5, 4, 2, 0, 0, -2, -3, -3, 0, 0)
-            "Soft" -> listOf(2, 1, 0, -1, 0, 1, 2, 3, 4, 4)
-            "Classical" -> listOf(4, 3, 2, 2, -1, -1, 0, 2, 3, 3)
-            "Full Bass" -> listOf(6, 5, 4, 2, 0, -2, -4, -5, -6, -6)
-            else -> listOf(0, 0, 0, 0, 0, 0, 0, 0, 0, 0)
-        }
-
-        for (i in 0..9) {
-            val lvl = levels.getOrElse(i) { 0 }
-            binding.winampEqualizerCanvas.bandLevelsDb[i] = lvl
-            playbackService?.setBandLevel(i, lvl)
-        }
-        binding.winampEqualizerCanvas.postInvalidate()
-    }
-
-    private fun setupCanvasPlaylistControls() {
-        binding.winampPlaylistCanvas.apply {
-            onAddClickListener = { showAddPopupMenu(this) }
-
-            onRemClickListener = {
-                val currIndex = playlistManager.currentIndex
-                if (currIndex in playlistManager.tracks.indices) {
-                    val removedTrack = playlistManager.tracks[currIndex]
-                    playlistManager.removeTrack(currIndex)
-                    updatePlaylistState()
-                    Toast.makeText(this@MainActivity, "Removed: ${removedTrack.title}", Toast.LENGTH_SHORT).show()
-                }
-            }
-
-            onSelClickListener = { showSelPopupMenu(this) }
-            onMiscClickListener = { showMiscPopupMenu(this) }
-            onListOptsClickListener = { showListOptsPopupMenu(this) }
-
-            onTrackSelectedListener = { clickedIdx ->
-                val track = playlistManager.selectTrack(clickedIdx)
-                track?.let {
-                    updateTrackDisplay(it, clickedIdx)
-                    playbackService?.playTrack(it)
-                }
-            }
-        }
-
-        playlistManager.onPlaylistChangedListener = {
-            updatePlaylistState()
-        }
-    }
-
-    private fun showAddPopupMenu(anchor: View) {
-        val popup = PopupMenu(this, anchor)
-        popup.menu.add("File")
-        popup.menu.add("Folder")
-
-        popup.setOnMenuItemClickListener { item ->
-            when (item.title) {
-                "File" -> filePickerLauncher.launch(arrayOf(
-                    "audio/*", "audio/mpeg", "audio/aac", "audio/mp4",
-                    "audio/flac", "audio/wav", "audio/x-wav", "audio/ogg", "audio/vorbis"
-                ))
-                "Folder" -> folderPickerLauncher.launch(null)
-            }
-            true
-        }
-        popup.show()
-    }
-
-    private fun showSelPopupMenu(anchor: View) {
-        val popup = PopupMenu(this, anchor)
-        popup.menu.add("All")
-        popup.menu.add("Current")
-
-        popup.setOnMenuItemClickListener { item ->
-            when (item.title) {
-                "All" -> {
-                    Toast.makeText(this, "Selected ${playlistManager.tracks.size} tracks", Toast.LENGTH_SHORT).show()
-                }
-                "Current" -> {
-                    val curr = playlistManager.currentIndex
-                    if (curr in playlistManager.tracks.indices) {
-                        binding.winampPlaylistCanvas.selectedIndex = curr
-                    }
-                }
-            }
-            true
-        }
-        popup.show()
-    }
-
-    private fun showMiscPopupMenu(anchor: View) {
-        val popup = PopupMenu(this, anchor)
-        popup.menu.add("File Info")
-        popup.menu.add("Sort by Title")
-
-        popup.setOnMenuItemClickListener { item ->
-            when (item.title) {
-                "File Info" -> showFileInfoDialog()
-                "Sort by Title" -> {
-                    playlistManager.sortTracksByTitle()
-                    updatePlaylistState()
-                    Toast.makeText(this, "Playlist sorted alphabetically", Toast.LENGTH_SHORT).show()
-                }
-            }
-            true
-        }
-        popup.show()
-    }
-
-    private fun showListOptsPopupMenu(anchor: View) {
-        val popup = PopupMenu(this, anchor)
-        popup.menu.add("Save Playlist (.m3u)")
-        popup.menu.add("Clear Playlist")
-        popup.menu.add("Load Playlist (.m3u)")
-
-        popup.setOnMenuItemClickListener { item ->
-            when (item.title) {
-                "Save Playlist (.m3u)" -> {
-                    if (playlistManager.tracks.isEmpty()) {
-                        Toast.makeText(this, "Playlist is empty!", Toast.LENGTH_SHORT).show()
-                    } else {
-                        saveM3uLauncher.launch("Winamp_Playlist.m3u")
-                    }
-                }
-                "Clear Playlist" -> {
-                    playlistManager.clearPlaylist()
-                    playbackService?.stop()
-                    updatePlaylistState()
-                    Toast.makeText(this, "Playlist cleared", Toast.LENGTH_SHORT).show()
-                }
-                "Load Playlist (.m3u)" -> {
-                    loadM3uLauncher.launch(arrayOf("audio/x-mpegurl", "audio/mpegurl", "*/*"))
-                }
-            }
-            true
-        }
-        popup.show()
-    }
-
-    private fun showFileInfoDialog() {
-        val track = playlistManager.getCurrentTrack()
-        if (track == null) {
-            Toast.makeText(this, "No track currently loaded", Toast.LENGTH_SHORT).show()
-            return
-        }
-
-        val infoMsg = """
-            Title: ${track.title}
-            Artist: ${track.artist}
-            Album: ${track.album}
-            Duration: ${track.getFormattedDuration()}
-            Bitrate: ${track.bitrateKbps} kbps
-            Sample Rate: ${track.sampleRateHz} Hz
-            Path/URI: ${track.uri}
-        """.trimIndent()
-
+    private fun showAddOptionsDialog() {
+        val options = arrayOf("Add File(s)", "Add Folder")
         AlertDialog.Builder(this)
-            .setTitle("WINAMP - Track Info")
-            .setMessage(infoMsg)
-            .setPositiveButton("OK", null)
+            .setTitle("Winamp - Add Music")
+            .setItems(options) { dialog, which ->
+                when (which) {
+                    0 -> filePickerLauncher.launch(arrayOf(
+                        "audio/*", "audio/mpeg", "audio/aac", "audio/mp4",
+                        "audio/flac", "audio/wav", "audio/x-wav", "audio/ogg", "audio/vorbis"
+                    ))
+                    1 -> folderPickerLauncher.launch(null)
+                }
+            }
+            .setOnCancelListener {
+                activeFilePathCallback?.onReceiveValue(null)
+                activeFilePathCallback = null
+            }
             .show()
     }
 
-    private fun updatePlaylistState() {
-        binding.winampPlaylistCanvas.updateTracks(playlistManager.tracks, playlistManager.currentIndex)
-        binding.winampPlaylistCanvas.totalTimeText = "${playlistManager.getTotalDurationFormatted()}"
-
-        val currentTrack = playlistManager.getCurrentTrack()
-        if (currentTrack != null) {
-            updateTrackDisplay(currentTrack, playlistManager.currentIndex)
-        } else {
-            updateEmptyDisplay()
-        }
-    }
-
-    private fun updateTrackDisplay(track: Track, index: Int) {
-        val displayName = track.getDisplayName(index + 1)
-        binding.winampMainCanvasPlayer.marqueeText = displayName
-        binding.winampMainCanvasPlayer.bitrateText = "${track.bitrateKbps} kbps"
-        binding.winampMainCanvasPlayer.sampleRateText = "${track.sampleRateHz / 1000} kHz"
-        binding.winampMainCanvasPlayer.isStereo = track.isStereo
-
-        val artBitmap = AudioMetadataHelper.loadAlbumArt(this, track.uri)
-        binding.winampAlbumArtView.setAlbumArt(artBitmap)
-    }
-
-    private fun updateEmptyDisplay() {
-        binding.winampMainCanvasPlayer.marqueeText = "WINAMP 5.662 (NO TRACK LOADED)"
-        binding.winampMainCanvasPlayer.bitrateText = "---"
-        binding.winampMainCanvasPlayer.sampleRateText = "--"
-        binding.winampMainCanvasPlayer.isStereo = true
-        binding.winampMainCanvasPlayer.timeText = "00:00"
-        binding.winampMainCanvasPlayer.isPlaying = false
-        binding.winampMainCanvasPlayer.isPaused = false
-        binding.winampMainCanvasPlayer.progressRatio = 0f
-        binding.winampAlbumArtView.setAlbumArt(null)
-    }
-
-    private fun setupServiceListeners() {
-        playbackService?.onProgressUpdateListener = { currentMs, totalMs ->
-            if (totalMs > 0) {
-                binding.winampMainCanvasPlayer.progressRatio = currentMs.toFloat() / totalMs
+    private fun scanAndSendFolderToWebamp(folderUri: Uri) {
+        Toast.makeText(this, "Scanning folder for music...", Toast.LENGTH_SHORT).show()
+        Thread {
+            try {
+                contentResolver.takePersistableUriPermission(folderUri, Intent.FLAG_GRANT_READ_URI_PERMISSION)
+            } catch (e: Exception) {
+                e.printStackTrace()
             }
-            val seconds = (currentMs / 1000) % 60
-            val minutes = (currentMs / 1000) / 60
-            binding.winampMainCanvasPlayer.timeText = String.format("%02d:%02d", minutes, seconds)
-            binding.winampMainCanvasPlayer.isPlaying = true
-            binding.winampMainCanvasPlayer.isPaused = false
-        }
 
-        playbackService?.onWaveformUpdateListener = { bytes ->
-            binding.milkdropVisualizerView.updateWaveform(bytes)
-        }
+            val root = DocumentFile.fromTreeUri(this, folderUri)
+            if (root != null) {
+                val audioFiles = mutableListOf<DocumentFile>()
+                scanDirectory(root, audioFiles)
 
-        playbackService?.onCompletionListener = {
-            if (playlistManager.isRepeat) {
-                playbackService?.currentTrack?.let { playbackService?.playTrack(it) }
-            } else {
-                val nextTrk = playlistManager.nextTrack()
-                if (nextTrk != null) {
-                    updateTrackDisplay(nextTrk, playlistManager.currentIndex)
-                    playbackService?.playTrack(nextTrk)
+                runOnUiThread {
+                    Toast.makeText(this, "Found ${audioFiles.size} music files in folder. Loading...", Toast.LENGTH_LONG).show()
                 }
+
+                for (file in audioFiles) {
+                    sendUriToWebamp(file.uri)
+                }
+            } else {
+                runOnUiThread {
+                    Toast.makeText(this, "Failed to read folder", Toast.LENGTH_SHORT).show()
+                }
+            }
+        }.start()
+    }
+
+    private fun scanDirectory(dir: DocumentFile, outFiles: MutableList<DocumentFile>) {
+        val files = dir.listFiles()
+        for (file in files) {
+            if (file.isDirectory) {
+                scanDirectory(file, outFiles)
+            } else {
+                val name = file.name?.lowercase() ?: ""
+                if (name.endsWith(".mp3") || name.endsWith(".aac") || name.endsWith(".m4a") ||
+                    name.endsWith(".flac") || name.endsWith(".wav") || name.endsWith(".ogg") ||
+                    name.endsWith(".opus")) {
+                    outFiles.add(file)
+                }
+            }
+        }
+    }
+
+    private fun sendUriToWebamp(uri: Uri) {
+        Thread {
+            try {
+                val track = AudioMetadataHelper.extractTrackMetadata(this, uri)
+                val inputStream: InputStream? = contentResolver.openInputStream(uri)
+                val bytes = inputStream?.readBytes()
+                inputStream?.close()
+
+                if (bytes != null && bytes.isNotEmpty()) {
+                    val base64Data = Base64.encodeToString(bytes, Base64.NO_WRAP)
+                    val mimeType = contentResolver.getType(uri) ?: "audio/mp3"
+                    val dataUrl = "data:$mimeType;base64,$base64Data"
+
+                    runOnUiThread {
+                        val safeTitle = track.title.replace("'", "\\'").replace("\"", "\\\"")
+                        val safeArtist = track.artist.replace("'", "\\'").replace("\"", "\\\"")
+                        val js = "addTrackToWebamp('$safeTitle', '$safeArtist', '$dataUrl');"
+                        binding.webViewWebamp.evaluateJavascript(js, null)
+                    }
+                }
+            } catch (e: Exception) {
+                e.printStackTrace()
+            }
+        }.start()
+    }
+
+    inner class AndroidBridge {
+        @JavascriptInterface
+        fun onWebampReady() {
+            runOnUiThread {
+                Toast.makeText(this@MainActivity, "Winamp ready!", Toast.LENGTH_SHORT).show()
+            }
+        }
+
+        @JavascriptInterface
+        fun onTrackChanged(title: String, artist: String) {
+            runOnUiThread {
+                val dummyTrack = Track(
+                    id = System.currentTimeMillis(),
+                    title = title,
+                    artist = artist,
+                    album = "Winamp",
+                    durationMs = 180000L,
+                    uri = Uri.EMPTY
+                )
+                playbackService?.playTrack(dummyTrack)
+            }
+        }
+
+        @JavascriptInterface
+        fun openFilePicker() {
+            runOnUiThread {
+                filePickerLauncher.launch(arrayOf("audio/*", "*/*"))
+            }
+        }
+
+        @JavascriptInterface
+        fun openFolderPicker() {
+            runOnUiThread {
+                folderPickerLauncher.launch(null)
             }
         }
     }
@@ -500,7 +267,6 @@ class MainActivity : AppCompatActivity() {
         } else {
             perms.add(Manifest.permission.READ_EXTERNAL_STORAGE)
         }
-        perms.add(Manifest.permission.RECORD_AUDIO)
 
         val ungranted = perms.filter {
             ContextCompat.checkSelfPermission(this, it) != PackageManager.PERMISSION_GRANTED

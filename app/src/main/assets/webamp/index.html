@@ -1,0 +1,122 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Winamp Classic</title>
+    <script src="webamp.bundle.min.js"></script>
+    <style>
+        body, html {
+            margin: 0;
+            padding: 0;
+            width: 100%;
+            height: 100%;
+            background-color: #000000;
+            overflow-x: hidden;
+            overflow-y: auto;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: flex-start;
+            user-select: none;
+            -webkit-user-select: none;
+        }
+        #webamp-app {
+            position: relative;
+            width: 275px;
+            height: 400px;
+            margin-top: 10px;
+            transform-origin: top center;
+        }
+    </style>
+</head>
+<body>
+    <div id="webamp-app"></div>
+
+    <script>
+        let webampInstance = null;
+
+        document.addEventListener("DOMContentLoaded", function () {
+            if (typeof Webamp === "undefined") {
+                console.error("Webamp SDK failed to load");
+                return;
+            }
+
+            // Built-in 2.91 classic skin without external fetch
+            webampInstance = new Webamp({
+                initialTracks: [
+                    {
+                        metaData: {
+                            artist: "DJ Mike Llama",
+                            title: "Llama Whippin' Intro"
+                        },
+                        url: "https://cdn.jsdelivr.net/gh/captbaritone/webamp@452349d9000fc7984024a1b026c11a68f448c414/demo/mp3/llama-2.91.mp3"
+                    }
+                ]
+            });
+
+            webampInstance.renderWhenReady(document.getElementById("webamp-app")).then(() => {
+                console.log("Webamp rendered successfully");
+
+                scaleWebamp();
+                window.addEventListener("resize", scaleWebamp);
+
+                if (window.AndroidBridge && window.AndroidBridge.onWebampReady) {
+                    window.AndroidBridge.onWebampReady();
+                }
+
+                webampInstance.onTrackDidChange((track) => {
+                    if (track && track.metaData) {
+                        const title = track.metaData.title || "Track";
+                        const artist = track.metaData.artist || "Unknown Artist";
+                        if (window.AndroidBridge && window.AndroidBridge.onTrackChanged) {
+                            window.AndroidBridge.onTrackChanged(title, artist);
+                        }
+                    }
+                });
+            });
+        });
+
+        function scaleWebamp() {
+            const appEl = document.getElementById("webamp-app");
+            if (!appEl) return;
+            const containerW = window.innerWidth;
+            const scale = (containerW - 16) / 275;
+            appEl.style.transform = `scale(${Math.min(Math.max(scale, 1.0), 2.2)})`;
+        }
+
+        function addTrackToWebamp(title, artist, audioDataUrl) {
+            if (webampInstance) {
+                webampInstance.appendTracks([
+                    {
+                        metaData: { title: title, artist: artist },
+                        url: audioDataUrl
+                    }
+                ]);
+            }
+        }
+
+        function clearWebampPlaylist() {
+            if (webampInstance) {
+                webampInstance.setTracksToPlay([]);
+            }
+        }
+
+        function playWebamp() {
+            if (webampInstance) webampInstance.play();
+        }
+
+        function pauseWebamp() {
+            if (webampInstance) webampInstance.pause();
+        }
+
+        function nextWebampTrack() {
+            if (webampInstance) webampInstance.nextTrack();
+        }
+
+        function prevWebampTrack() {
+            if (webampInstance) webampInstance.previousTrack();
+        }
+    </script>
+</body>
+</html>
