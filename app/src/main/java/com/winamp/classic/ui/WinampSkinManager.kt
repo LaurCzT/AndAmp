@@ -142,14 +142,14 @@ object WinampSkinManager {
     fun getPlaylistActionBitmap(btnIdx: Int, isPressed: Boolean): Bitmap? {
         val src = pleditBmp ?: return null
         val (x, y, w) = when (btnIdx) {
-            0 -> Triple(0, 149, 22)    // ADD
-            1 -> Triple(54, 149, 22)   // REM
-            2 -> Triple(104, 149, 22)  // SEL
-            3 -> Triple(154, 149, 22)  // MISC
-            4 -> Triple(204, 149, 22)  // LIST OPTS
-            else -> Triple(0, 149, 22)
+            0 -> Triple(0, 149, 25)    // ADD
+            1 -> Triple(54, 149, 25)   // REM
+            2 -> Triple(104, 149, 23)  // SEL
+            3 -> Triple(154, 149, 25)  // MISC
+            4 -> Triple(204, 149, 45)  // LIST OPTS
+            else -> Triple(0, 149, 25)
         }
-        val finalX = if (isPressed) x + 23 else x
+        val finalX = if (isPressed) x + w else x
         return cropSprite(src, finalX, y, w, 18)
     }
 
