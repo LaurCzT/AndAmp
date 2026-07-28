@@ -134,9 +134,12 @@ class PlaylistManager(private val context: Context) {
             } else {
                 val name = file.name ?: ""
                 val lowerName = name.lowercase()
-                if (lowerName.endsWith(".mp3") || lowerName.endsWith(".wav") ||
-                    lowerName.endsWith(".flac") || lowerName.endsWith(".aac") ||
-                    lowerName.endsWith(".m4a") || lowerName.endsWith(".ogg")) {
+                // Support MP3, AAC, FLAC, WAV, and Ogg Vorbis
+                if (lowerName.endsWith(".mp3") ||
+                    lowerName.endsWith(".aac") || lowerName.endsWith(".m4a") || lowerName.endsWith(".mp4") || lowerName.endsWith(".m4b") ||
+                    lowerName.endsWith(".flac") ||
+                    lowerName.endsWith(".wav") || lowerName.endsWith(".wave") ||
+                    lowerName.endsWith(".ogg") || lowerName.endsWith(".oga") || lowerName.endsWith(".ogv") || lowerName.endsWith(".opus")) {
 
                     val track = AudioMetadataHelper.extractTrackMetadata(context, file.uri)
                     outTracks.add(track)

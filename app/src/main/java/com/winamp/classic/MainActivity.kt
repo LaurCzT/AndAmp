@@ -25,6 +25,7 @@ import com.winamp.classic.audio.PlaylistManager
 import com.winamp.classic.databinding.ActivityMainBinding
 import com.winamp.classic.model.Track
 import com.winamp.classic.ui.PlaylistAdapter
+import com.winamp.classic.ui.WinampSkinManager
 
 class MainActivity : AppCompatActivity() {
 
@@ -42,7 +43,6 @@ class MainActivity : AppCompatActivity() {
             playbackService = srv
             isBound = true
 
-            // Bind shared PlaylistManager from service so state persists across app recreations
             playlistManager = srv.playlistManager
             setupPlaylistAdapter()
 
@@ -146,12 +146,49 @@ class MainActivity : AppCompatActivity() {
         binding = ActivityMainBinding.inflate(layoutInflater)
         setContentView(binding.root)
 
+        // Load classic Winamp skin BMP spritesheets
+        WinampSkinManager.loadSkin(this)
+
         playlistManager = PlaylistManager(this)
         setupPlaylistAdapter()
         setupUIControls()
+        applySkinDrawables()
         checkPermissions()
         startAndBindService()
         updateEmptyDisplay()
+    }
+
+    private fun applySkinDrawables() {
+        // Apply BMP thumbs to seekbars
+        val goldThumb = WinampSkinManager.getGoldSeekerThumb(this)
+        if (goldThumb != null) {
+            binding.seekProgress.thumb = goldThumb
+        }
+
+        val silverThumb = WinampSkinManager.getSilverSliderThumb(this)
+        if (silverThumb != null) {
+            binding.seekVolume.thumb = silverThumb
+            binding.seekBalance.thumb = silverThumb
+        }
+
+        // Apply transport button BMP drawables
+        val prevDr = WinampSkinManager.getTransportButtonDrawable(this, 0, false)
+        if (prevDr != null) binding.btnPrev.background = prevDr
+
+        val playDr = WinampSkinManager.getTransportButtonDrawable(this, 1, false)
+        if (playDr != null) binding.btnPlay.background = playDr
+
+        val pauseDr = WinampSkinManager.getTransportButtonDrawable(this, 2, false)
+        if (pauseDr != null) binding.btnPause.background = pauseDr
+
+        val stopDr = WinampSkinManager.getTransportButtonDrawable(this, 3, false)
+        if (stopDr != null) binding.btnStop.background = stopDr
+
+        val nextDr = WinampSkinManager.getTransportButtonDrawable(this, 4, false)
+        if (nextDr != null) binding.btnNext.background = nextDr
+
+        val ejectDr = WinampSkinManager.getTransportButtonDrawable(this, 5, false)
+        if (ejectDr != null) binding.btnEject.background = ejectDr
     }
 
     private fun setupPlaylistAdapter() {
@@ -331,7 +368,10 @@ class MainActivity : AppCompatActivity() {
 
         popup.setOnMenuItemClickListener { item ->
             when (item.title) {
-                "File" -> filePickerLauncher.launch(arrayOf("audio/*"))
+                "File" -> filePickerLauncher.launch(arrayOf(
+                    "audio/*", "audio/mpeg", "audio/aac", "audio/mp4",
+                    "audio/flac", "audio/wav", "audio/x-wav", "audio/ogg", "audio/vorbis"
+                ))
                 "Folder" -> folderPickerLauncher.launch(null)
             }
             true
