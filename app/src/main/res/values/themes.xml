@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <style name="Theme.WinampClassic" parent="Theme.AppCompat.NoActionBar">
+        <item name="colorPrimary">@color/winamp_title_gold</item>
+        <item name="colorPrimaryDark">@color/winamp_bg</item>
+        <item name="colorAccent">@color/winamp_led_green</item>
+        <item name="android:windowBackground">@color/winamp_bg</item>
+        <item name="android:statusBarColor">@color/winamp_bg</item>
+    </style>
+</resources>

@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <color name="winamp_bg">#1F2129</color>
+    <color name="winamp_window_bg">#272A36</color>
+    <color name="winamp_title_gold">#C5A868</color>
+    <color name="winamp_title_bg">#303442</color>
+    <color name="winamp_led_bg">#070D09</color>
+    <color name="winamp_led_green">#00FF2A</color>
+    <color name="winamp_playlist_blue">#0000A8</color>
+    <color name="winamp_btn_bg">#444858</color>
+    <color name="winamp_btn_stroke">#62687A</color>
+</resources>
