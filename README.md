@@ -2,7 +2,7 @@
 
 A full-featured Android music player with an authentic 90s **Winamp Classic** skin interface, complete with retro green LED displays, scrolling title marquees, playlist manager with M3U support, 10-band equalizer with presets, dynamic Milkdrop 2 audio visualizer, MP3 album art viewer, and background playback with lock screen media controls.
 
-![Winamp Classic Android](WinAmp%20Classic%20Android.png)
+![Winamp Classic Android](AndAmp.png)
 
 ---
 
