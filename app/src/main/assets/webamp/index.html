@@ -23,10 +23,13 @@
         }
         #webamp-app {
             position: relative;
-            width: 275px;
-            height: 400px;
-            margin-top: 10px;
-            transform-origin: top center;
+            width: 100%;
+            display: flex;
+            justify-content: center;
+            align-items: flex-start;
+        }
+        #webamp {
+            transform-origin: top center !important;
         }
     </style>
 </head>
@@ -42,7 +45,6 @@
                 return;
             }
 
-            // Built-in 2.91 classic skin without external fetch
             webampInstance = new Webamp({
                 initialTracks: [
                     {
@@ -60,6 +62,11 @@
 
                 scaleWebamp();
                 window.addEventListener("resize", scaleWebamp);
+                setInterval(scaleWebamp, 500);
+
+                // Auto unlock audio context on touch
+                document.body.addEventListener("touchstart", unlockAudio, { once: true });
+                document.body.addEventListener("click", unlockAudio, { once: true });
 
                 if (window.AndroidBridge && window.AndroidBridge.onWebampReady) {
                     window.AndroidBridge.onWebampReady();
@@ -77,22 +84,36 @@
             });
         });
 
-        function scaleWebamp() {
-            const appEl = document.getElementById("webamp-app");
-            if (!appEl) return;
-            const containerW = window.innerWidth;
-            const scale = (containerW - 16) / 275;
-            appEl.style.transform = `scale(${Math.min(Math.max(scale, 1.0), 2.2)})`;
+        function unlockAudio() {
+            if (webampInstance) {
+                webampInstance.play();
+            }
         }
 
-        function addTrackToWebamp(title, artist, audioDataUrl) {
+        function scaleWebamp() {
+            const webampEl = document.getElementById("webamp");
+            if (!webampEl) return;
+            const containerW = window.innerWidth;
+            if (containerW > 0) {
+                const scale = containerW / 275;
+                webampEl.style.transform = `scale(${scale})`;
+            }
+        }
+
+        function addTrackToWebamp(title, artist, audioUrl) {
             if (webampInstance) {
                 webampInstance.appendTracks([
                     {
                         metaData: { title: title, artist: artist },
-                        url: audioDataUrl
+                        url: audioUrl
                     }
                 ]);
+            }
+        }
+
+        function setWebampTracks(trackArray) {
+            if (webampInstance) {
+                webampInstance.setTracksToPlay(trackArray);
             }
         }
 
