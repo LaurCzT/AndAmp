@@ -14,27 +14,24 @@
             background-color: #000000;
             overflow-x: hidden;
             overflow-y: auto;
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            justify-content: flex-start;
             user-select: none;
             -webkit-user-select: none;
         }
+        #webamp-container {
+            width: 100%;
+            overflow: hidden;
+        }
         #webamp-app {
             position: relative;
-            width: 100%;
-            display: flex;
-            justify-content: center;
-            align-items: flex-start;
-        }
-        #webamp {
-            transform-origin: top center !important;
+            width: 275px;
+            transform-origin: top left !important;
         }
     </style>
 </head>
 <body>
-    <div id="webamp-app"></div>
+    <div id="webamp-container">
+        <div id="webamp-app"></div>
+    </div>
 
     <script>
         let webampInstance = null;
@@ -64,7 +61,6 @@
                 window.addEventListener("resize", scaleWebamp);
                 setInterval(scaleWebamp, 500);
 
-                // Auto unlock audio context on touch
                 document.body.addEventListener("touchstart", unlockAudio, { once: true });
                 document.body.addEventListener("click", unlockAudio, { once: true });
 
@@ -81,6 +77,13 @@
                         }
                     }
                 });
+
+                webampInstance.onWillStateChange((state) => {
+                    if (window.AndroidBridge && window.AndroidBridge.onPlaybackStateChanged) {
+                        const isPlaying = state.status === "PLAYING";
+                        window.AndroidBridge.onPlaybackStateChanged(isPlaying);
+                    }
+                });
             });
         });
 
@@ -91,12 +94,12 @@
         }
 
         function scaleWebamp() {
-            const webampEl = document.getElementById("webamp");
-            if (!webampEl) return;
-            const containerW = window.innerWidth;
-            if (containerW > 0) {
-                const scale = containerW / 275;
-                webampEl.style.transform = `scale(${scale})`;
+            const appEl = document.getElementById("webamp-app");
+            if (!appEl) return;
+            const screenW = window.innerWidth;
+            if (screenW > 0) {
+                const scale = screenW / 275;
+                appEl.style.transform = `scale(${scale})`;
             }
         }
 
@@ -108,12 +111,6 @@
                         url: audioUrl
                     }
                 ]);
-            }
-        }
-
-        function setWebampTracks(trackArray) {
-            if (webampInstance) {
-                webampInstance.setTracksToPlay(trackArray);
             }
         }
 

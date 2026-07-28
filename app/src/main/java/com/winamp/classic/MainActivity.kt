@@ -27,7 +27,6 @@ import androidx.documentfile.provider.DocumentFile
 import com.winamp.classic.audio.AudioMetadataHelper
 import com.winamp.classic.audio.AudioPlaybackService
 import com.winamp.classic.databinding.ActivityMainBinding
-import com.winamp.classic.model.Track
 import java.io.InputStream
 import java.util.concurrent.ConcurrentHashMap
 
@@ -41,11 +40,25 @@ class MainActivity : AppCompatActivity() {
     private val trackUriMap = ConcurrentHashMap<String, Uri>()
     private var trackCounter = 0L
 
+    private val savedTracksList = mutableListOf<Pair<String, String>>() // title, streamUrl
+
     private val serviceConnection = object : ServiceConnection {
         override fun onServiceConnected(name: ComponentName?, service: IBinder?) {
             val binder = service as AudioPlaybackService.LocalBinder
-            playbackService = binder.getService()
+            val srv = binder.getService()
+            playbackService = srv
             isBound = true
+
+            srv.onMediaControlListener = { action ->
+                runOnUiThread {
+                    when (action) {
+                        "PLAY_PAUSE", "PLAY" -> binding.webViewWebamp.evaluateJavascript("playWebamp();", null)
+                        "PAUSE" -> binding.webViewWebamp.evaluateJavascript("pauseWebamp();", null)
+                        "NEXT" -> binding.webViewWebamp.evaluateJavascript("nextWebampTrack();", null)
+                        "PREVIOUS" -> binding.webViewWebamp.evaluateJavascript("prevWebampTrack();", null)
+                    }
+                }
+            }
         }
 
         override fun onServiceDisconnected(name: ComponentName?) {
@@ -233,6 +246,7 @@ class MainActivity : AppCompatActivity() {
                 trackUriMap[trackId] = uri
 
                 val streamUrl = "http://localhost/music/$trackId.mp3"
+                savedTracksList.add(Pair(track.getDisplayName(savedTracksList.size + 1), streamUrl))
 
                 runOnUiThread {
                     val safeTitle = track.title.replace("'", "\\'").replace("\"", "\\\"")
@@ -251,21 +265,30 @@ class MainActivity : AppCompatActivity() {
         fun onWebampReady() {
             runOnUiThread {
                 Toast.makeText(this@MainActivity, "Winamp ready!", Toast.LENGTH_SHORT).show()
+                if (savedTracksList.isNotEmpty()) {
+                    for (item in savedTracksList) {
+                        val title = item.first.replace("'", "\\'").replace("\"", "\\\"")
+                        val url = item.second
+                        val js = "addTrackToWebamp('$title', 'Local Track', '$url');"
+                        binding.webViewWebamp.evaluateJavascript(js, null)
+                    }
+                }
             }
         }
 
         @JavascriptInterface
         fun onTrackChanged(title: String, artist: String) {
             runOnUiThread {
-                val dummyTrack = Track(
-                    id = System.currentTimeMillis(),
-                    title = title,
-                    artist = artist,
-                    album = "Winamp",
-                    durationMs = 180000L,
-                    uri = Uri.EMPTY
-                )
-                playbackService?.playTrack(dummyTrack)
+                playbackService?.updateWebampState(title, artist, true)
+            }
+        }
+
+        @JavascriptInterface
+        fun onPlaybackStateChanged(isPlaying: Boolean) {
+            runOnUiThread {
+                playbackService?.currentTrack?.let { trk ->
+                    playbackService?.updateWebampState(trk.title, trk.artist, isPlaying)
+                }
             }
         }
 
