@@ -68,15 +68,14 @@ class WinampCanvasPlaylistView @JvmOverloads constructor(
         val scaleX = w / 275f
 
         // 1. Draw PLEDIT.BMP Top Bar (275 x 20)
-        val topDr = WinampSkinManager.getPlaylistTopBar(context)
-        topDr?.setBounds(0, 0, w.toInt(), (20f * (w / 275f)).toInt())
-        topDr?.draw(canvas)
+        val topBmp = WinampSkinManager.getPlaylistTopBarBitmap()
+        val topY = 20f * (w / 275f)
+        if (topBmp != null) {
+            canvas.drawBitmap(topBmp, null, RectF(0f, 0f, w, topY), null)
+        }
 
         // 2. Draw Middle Track List Black Container (y: 20 .. h - 38)
-        val topY = 20f * (w / 275f)
         val bottomY = h - (38f * (w / 275f))
-        val trackListH = bottomY - topY
-
         canvas.drawRect(0f, topY, w, bottomY, bgBlackPaint)
 
         // 3. Draw Tracks
@@ -105,9 +104,10 @@ class WinampCanvasPlaylistView @JvmOverloads constructor(
         }
 
         // 4. Draw PLEDIT.BMP Bottom Bar (275 x 38) at bottom
-        val bottomDr = WinampSkinManager.getPlaylistBottomBar(context)
-        bottomDr?.setBounds(0, bottomY.toInt(), w.toInt(), h.toInt())
-        bottomDr?.draw(canvas)
+        val bottomBmp = WinampSkinManager.getPlaylistBottomBarBitmap()
+        if (bottomBmp != null) {
+            canvas.drawBitmap(bottomBmp, null, RectF(0f, bottomY, w, h), null)
+        }
 
         // 5. Draw Playlist Action Buttons (ADD, REM, SEL, MISC, LIST OPTS) at bottom bar
         val btnY = bottomY + (10f * (w / 275f))
@@ -117,14 +117,12 @@ class WinampCanvasPlaylistView @JvmOverloads constructor(
         val btnWList = listOf(25f, 25f, 23f, 25f, 45f)
 
         for (i in 0..4) {
-            val dr = WinampSkinManager.getPlaylistActionDrawable(context, i)
-            if (dr != null) {
-                dr.state = if (pressedBtnIdx == i) intArrayOf(android.R.attr.state_pressed) else intArrayOf()
+            val btnBmp = WinampSkinManager.getPlaylistActionBitmap(i, pressedBtnIdx == i)
+            if (btnBmp != null) {
                 val bx = btnXList[i] * scaleX
                 val bw = btnWList[i] * scaleX
                 val dest = RectF(bx, btnY, bx + bw, btnY + btnH)
-                val bitmap = (dr as? android.graphics.drawable.BitmapDrawable)?.bitmap
-                if (bitmap != null) canvas.drawBitmap(bitmap, null, dest, null)
+                canvas.drawBitmap(btnBmp, null, dest, null)
             }
         }
 
@@ -156,6 +154,18 @@ class WinampCanvasPlaylistView @JvmOverloads constructor(
                         onTrackSelectedListener?.invoke(clickedIdx)
                         postInvalidate()
                     }
+                }
+                // Action buttons at bottom bar
+                if (touchY >= bottomY) {
+                    pressedBtnIdx = when {
+                        touchX in 12f..38f -> 0
+                        touchX in 40f..66f -> 1
+                        touchX in 68f..94f -> 2
+                        touchX in 96f..124f -> 3
+                        touchX in 210f..265f -> 4
+                        else -> -1
+                    }
+                    postInvalidate()
                 }
             }
 

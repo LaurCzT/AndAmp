@@ -98,19 +98,19 @@ class WinampCanvasPlayerView @JvmOverloads constructor(
             postInvalidate()
         }
 
-    var progressRatio: Float = 0f // 0.0 to 1.0
+    var progressRatio: Float = 0f
         set(value) {
             field = value.coerceIn(0f, 1f)
             postInvalidate()
         }
 
-    var volumeRatio: Float = 0.8f // 0.0 to 1.0
+    var volumeRatio: Float = 0.8f
         set(value) {
             field = value.coerceIn(0f, 1f)
             postInvalidate()
         }
 
-    var balanceRatio: Float = 0.5f // 0.0 to 1.0 (0.5 center)
+    var balanceRatio: Float = 0.5f
         set(value) {
             field = value.coerceIn(0f, 1f)
             postInvalidate()
@@ -141,9 +141,10 @@ class WinampCanvasPlayerView @JvmOverloads constructor(
         val scaleY = h / 116f
 
         // 1. Draw MAIN.BMP Background (275 x 116)
-        val mainBg = WinampSkinManager.getMainBackground(context)
-        mainBg?.setBounds(0, 0, w.toInt(), h.toInt())
-        mainBg?.draw(canvas)
+        val mainBgBmp = WinampSkinManager.getMainBackgroundBitmap()
+        if (mainBgBmp != null) {
+            canvas.drawBitmap(mainBgBmp, null, RectF(0f, 0f, w, h), null)
+        }
 
         // 2. Draw LED Time Digits inside (36, 26, 60, 32)
         val timeStr = if (timeText.length < 5) timeText.padStart(5, '0') else timeText
@@ -162,7 +163,7 @@ class WinampCanvasPlayerView @JvmOverloads constructor(
             }
         }
 
-        // 3. Draw Marquee Text inside (111, 27, 153, 13)
+        // 3. Draw Marquee Text inside (111, 27)
         greenTextPaint.textSize = 9f * scaleY
         val marqueeX = 111f * scaleX
         val marqueeY = 36f * scaleY
@@ -173,83 +174,71 @@ class WinampCanvasPlayerView @JvmOverloads constructor(
         canvas.drawText("$sampleRateText", 156f * scaleX, 52f * scaleY, greenTextPaint)
 
         // 5. Draw Volume Silver Slider Thumb at (107 + volumeRatio * 54, 57)
-        val volThumb = WinampSkinManager.getSilverSliderThumb(context)
-        if (volThumb != null) {
+        val volBmp = WinampSkinManager.getSilverSliderThumbBitmap()
+        if (volBmp != null) {
             val vx = (107f + volumeRatio * 54f) * scaleX
             val vy = 57f * scaleY
             val dest = RectF(vx, vy, vx + (14f * scaleX), vy + (11f * scaleY))
-            val bitmap = (volThumb as? android.graphics.drawable.BitmapDrawable)?.bitmap
-            if (bitmap != null) canvas.drawBitmap(bitmap, null, dest, null)
+            canvas.drawBitmap(volBmp, null, dest, null)
         }
 
         // 6. Draw Balance Silver Slider Thumb at (177 + balanceRatio * 24, 57)
-        val balThumb = WinampSkinManager.getSilverSliderThumb(context)
-        if (balThumb != null) {
+        val balBmp = WinampSkinManager.getSilverSliderThumbBitmap()
+        if (balBmp != null) {
             val bx = (177f + balanceRatio * 24f) * scaleX
             val by = 57f * scaleY
             val dest = RectF(bx, by, bx + (14f * scaleX), by + (11f * scaleY))
-            val bitmap = (balThumb as? android.graphics.drawable.BitmapDrawable)?.bitmap
-            if (bitmap != null) canvas.drawBitmap(bitmap, null, dest, null)
+            canvas.drawBitmap(balBmp, null, dest, null)
         }
 
         // 7. Draw EQ & PL Toggle Buttons at (219, 58) and (242, 58)
-        val eqDr = WinampSkinManager.getEqToggleDrawable(context)
-        if (eqDr != null) {
-            eqDr.state = if (isEqVisible) intArrayOf(android.R.attr.state_selected) else intArrayOf()
+        val eqBmp = WinampSkinManager.getEqToggleBitmap(isEqVisible)
+        if (eqBmp != null) {
             val dest = RectF(219f * scaleX, 58f * scaleY, 242f * scaleX, 70f * scaleY)
-            val bitmap = (eqDr as? android.graphics.drawable.BitmapDrawable)?.bitmap
-            if (bitmap != null) canvas.drawBitmap(bitmap, null, dest, null)
+            canvas.drawBitmap(eqBmp, null, dest, null)
         }
 
-        val plDr = WinampSkinManager.getPlToggleDrawable(context)
-        if (plDr != null) {
-            plDr.state = if (isPlVisible) intArrayOf(android.R.attr.state_selected) else intArrayOf()
+        val plBmp = WinampSkinManager.getPlToggleBitmap(isPlVisible)
+        if (plBmp != null) {
             val dest = RectF(242f * scaleX, 58f * scaleY, 265f * scaleX, 70f * scaleY)
-            val bitmap = (plDr as? android.graphics.drawable.BitmapDrawable)?.bitmap
-            if (bitmap != null) canvas.drawBitmap(bitmap, null, dest, null)
+            canvas.drawBitmap(plBmp, null, dest, null)
         }
 
         // 8. Draw Main Seeker Gold Thumb at (16 + progressRatio * 219, 72)
-        val seekerThumb = WinampSkinManager.getGoldSeekerThumb(context)
-        if (seekerThumb != null) {
+        val seekerBmp = WinampSkinManager.getGoldSeekerThumbBitmap()
+        if (seekerBmp != null) {
             val sx = (16f + progressRatio * 219f) * scaleX
             val sy = 72f * scaleY
             val dest = RectF(sx, sy, sx + (29f * scaleX), sy + (10f * scaleY))
-            val bitmap = (seekerThumb as? android.graphics.drawable.BitmapDrawable)?.bitmap
-            if (bitmap != null) canvas.drawBitmap(bitmap, null, dest, null)
+            canvas.drawBitmap(seekerBmp, null, dest, null)
         }
 
         // 9. Draw Transport Buttons (Prev, Play, Pause, Stop, Next, Eject) at y: 88
         val transportX = listOf(16f, 39f, 62f, 85f, 108f, 136f)
         for (i in 0..5) {
-            val dr = WinampSkinManager.getTransportStateListDrawable(context, i)
-            if (dr != null) {
-                dr.state = if (pressedBtnIdx == i) intArrayOf(android.R.attr.state_pressed) else intArrayOf()
+            val isPressed = pressedBtnIdx == i
+            val btnBmp = WinampSkinManager.getTransportBitmap(i, isPressed)
+            if (btnBmp != null) {
                 val tx = transportX[i] * scaleX
                 val ty = 88f * scaleY
                 val tw = (if (i == 5) 22f else 23f) * scaleX
                 val th = 18f * scaleY
                 val dest = RectF(tx, ty, tx + tw, ty + th)
-                val bitmap = (dr as? android.graphics.drawable.BitmapDrawable)?.bitmap
-                if (bitmap != null) canvas.drawBitmap(bitmap, null, dest, null)
+                canvas.drawBitmap(btnBmp, null, dest, null)
             }
         }
 
         // 10. Draw Shuffle (164, 89) and Repeat (210, 89) Buttons
-        val shufDr = WinampSkinManager.getShuffleStateListDrawable(context)
-        if (shufDr != null) {
-            shufDr.state = if (pressedBtnIdx == 6) intArrayOf(android.R.attr.state_pressed) else if (isShuffle) intArrayOf(android.R.attr.state_selected) else intArrayOf()
+        val shufBmp = WinampSkinManager.getShuffleBitmap(isShuffle, pressedBtnIdx == 6)
+        if (shufBmp != null) {
             val dest = RectF(164f * scaleX, 89f * scaleY, 210f * scaleX, 104f * scaleY)
-            val bitmap = (shufDr as? android.graphics.drawable.BitmapDrawable)?.bitmap
-            if (bitmap != null) canvas.drawBitmap(bitmap, null, dest, null)
+            canvas.drawBitmap(shufBmp, null, dest, null)
         }
 
-        val repDr = WinampSkinManager.getRepeatStateListDrawable(context)
-        if (repDr != null) {
-            repDr.state = if (pressedBtnIdx == 7) intArrayOf(android.R.attr.state_pressed) else if (isRepeat) intArrayOf(android.R.attr.state_selected) else intArrayOf()
+        val repBmp = WinampSkinManager.getRepeatBitmap(isRepeat, pressedBtnIdx == 7)
+        if (repBmp != null) {
             val dest = RectF(210f * scaleX, 89f * scaleY, 238f * scaleX, 104f * scaleY)
-            val bitmap = (repDr as? android.graphics.drawable.BitmapDrawable)?.bitmap
-            if (bitmap != null) canvas.drawBitmap(bitmap, null, dest, null)
+            canvas.drawBitmap(repBmp, null, dest, null)
         }
     }
 
@@ -266,7 +255,7 @@ class WinampCanvasPlayerView @JvmOverloads constructor(
 
         when (event.action) {
             MotionEvent.ACTION_DOWN, MotionEvent.ACTION_MOVE -> {
-                // Seeker Dragging (x: 16..264, y: 70..84)
+                // Seeker Dragging (x: 16..264, y: 68..84)
                 if (touchY in 68f..84f && touchX in 16f..264f) {
                     val ratio = ((touchX - 16f) / 219f).coerceIn(0f, 1f)
                     progressRatio = ratio
@@ -286,6 +275,22 @@ class WinampCanvasPlayerView @JvmOverloads constructor(
                     balanceRatio = ratio
                     onBalanceChangeListener?.invoke(ratio)
                     return true
+                }
+
+                // Pressed states
+                if (touchY in 85f..106f) {
+                    pressedBtnIdx = when {
+                        touchX in 16f..38f -> 0
+                        touchX in 39f..61f -> 1
+                        touchX in 62f..84f -> 2
+                        touchX in 85f..107f -> 3
+                        touchX in 108f..130f -> 4
+                        touchX in 136f..158f -> 5
+                        touchX in 164f..210f -> 6
+                        touchX in 210f..238f -> 7
+                        else -> -1
+                    }
+                    postInvalidate()
                 }
             }
 

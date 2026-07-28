@@ -15,10 +15,10 @@
         android:layout_height="wrap_content" />
 
     <!-- ==================== WINAMP EQUALIZER WINDOW ==================== -->
-    <com.winamp.classic.ui.WinampEqualizerView
-        android:id="@+id/winampEqualizerWindow"
+    <com.winamp.classic.ui.WinampCanvasEqualizerView
+        android:id="@+id/winampEqualizerCanvas"
         android:layout_width="match_parent"
-        android:layout_height="130dp"
+        android:layout_height="wrap_content"
         android:layout_marginTop="4dp" />
 
     <!-- ==================== WINAMP PLAYLIST WINDOW ==================== -->

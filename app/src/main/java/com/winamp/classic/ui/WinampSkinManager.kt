@@ -5,7 +5,6 @@ import android.graphics.Bitmap
 import android.graphics.BitmapFactory
 import android.graphics.drawable.BitmapDrawable
 import android.graphics.drawable.Drawable
-import android.graphics.drawable.StateListDrawable
 
 object WinampSkinManager {
 
@@ -56,33 +55,25 @@ object WinampSkinManager {
         }
     }
 
-    fun getMainBackground(context: Context): Drawable? {
+    // Windows Background Bitmaps
+    fun getMainBackgroundBitmap(): Bitmap? {
         val bmp = mainBmp ?: return null
-        val sub = cropSprite(bmp, 0, 0, 275, 116) ?: bmp
-        return BitmapDrawable(context.resources, sub)
+        return cropSprite(bmp, 0, 0, 275, 116) ?: bmp
     }
 
-    fun getEqualizerBackground(context: Context): Drawable? {
+    fun getEqualizerBackgroundBitmap(): Bitmap? {
         val bmp = eqmainBmp ?: return null
-        val sub = cropSprite(bmp, 0, 0, 275, 116) ?: bmp
-        return BitmapDrawable(context.resources, sub)
+        return cropSprite(bmp, 0, 0, 275, 116) ?: bmp
     }
 
-    fun getPlaylistBackground(context: Context): Drawable? {
-        val bmp = pleditBmp ?: return null
-        return BitmapDrawable(context.resources, bmp)
-    }
-
-    fun getPlaylistTopBar(context: Context): Drawable? {
+    fun getPlaylistTopBarBitmap(): Bitmap? {
         val src = pleditBmp ?: return null
-        val sub = cropSprite(src, 0, 0, 275, 20) ?: return null
-        return BitmapDrawable(context.resources, sub)
+        return cropSprite(src, 0, 0, 275, 20)
     }
 
-    fun getPlaylistBottomBar(context: Context): Drawable? {
+    fun getPlaylistBottomBarBitmap(): Bitmap? {
         val src = pleditBmp ?: return null
-        val sub = cropSprite(src, 0, 78, 275, 38) ?: return null
-        return BitmapDrawable(context.resources, sub)
+        return cropSprite(src, 0, 78, 275, 38)
     }
 
     // Digital LED Digits from NUMBERS.BMP (9x13 px each)
@@ -96,8 +87,8 @@ object WinampSkinManager {
         return cropSprite(src, idx * 9, 0, 9, 13)
     }
 
-    // Transport buttons StateListDrawable from CBUTTONS.BMP
-    fun getTransportStateListDrawable(context: Context, buttonIdx: Int): Drawable? {
+    // Transport buttons from CBUTTONS.BMP
+    fun getTransportBitmap(buttonIdx: Int, isPressed: Boolean): Bitmap? {
         val src = cbuttonsBmp ?: return null
         val x = when (buttonIdx) {
             0 -> 0   // Prev
@@ -108,70 +99,47 @@ object WinampSkinManager {
             5 -> 114 // Eject
             else -> 0
         }
+        val y = if (isPressed) 18 else 0
         val w = if (buttonIdx == 5) 22 else 23
-        val normalBmp = cropSprite(src, x, 0, w, 18) ?: return null
-        val pressedBmp = cropSprite(src, x, 18, w, 18) ?: normalBmp
-
-        val sld = StateListDrawable()
-        sld.addState(intArrayOf(android.R.attr.state_pressed), BitmapDrawable(context.resources, pressedBmp))
-        sld.addState(intArrayOf(), BitmapDrawable(context.resources, normalBmp))
-        return sld
+        return cropSprite(src, x, y, w, 18)
     }
 
-    // Shuffle & Repeat StateListDrawables from SHUFREP.BMP
-    fun getShuffleStateListDrawable(context: Context): Drawable? {
+    // Shuffle & Repeat Bitmaps from SHUFREP.BMP
+    fun getShuffleBitmap(isSelected: Boolean, isPressed: Boolean): Bitmap? {
         val src = shufrepBmp ?: return null
-        val normalBmp = cropSprite(src, 28, 0, 46, 15) ?: return null
-        val activeBmp = cropSprite(src, 28, 15, 46, 15) ?: normalBmp
-        val pressedBmp = cropSprite(src, 28, 30, 46, 15) ?: activeBmp
-
-        val sld = StateListDrawable()
-        sld.addState(intArrayOf(android.R.attr.state_selected), BitmapDrawable(context.resources, activeBmp))
-        sld.addState(intArrayOf(android.R.attr.state_pressed), BitmapDrawable(context.resources, pressedBmp))
-        sld.addState(intArrayOf(), BitmapDrawable(context.resources, normalBmp))
-        return sld
+        val y = when {
+            isPressed -> 30
+            isSelected -> 15
+            else -> 0
+        }
+        return cropSprite(src, 28, y, 46, 15)
     }
 
-    fun getRepeatStateListDrawable(context: Context): Drawable? {
+    fun getRepeatBitmap(isSelected: Boolean, isPressed: Boolean): Bitmap? {
         val src = shufrepBmp ?: return null
-        val normalBmp = cropSprite(src, 0, 0, 28, 15) ?: return null
-        val activeBmp = cropSprite(src, 0, 15, 28, 15) ?: normalBmp
-        val pressedBmp = cropSprite(src, 0, 30, 28, 15) ?: activeBmp
-
-        val sld = StateListDrawable()
-        sld.addState(intArrayOf(android.R.attr.state_selected), BitmapDrawable(context.resources, activeBmp))
-        sld.addState(intArrayOf(android.R.attr.state_pressed), BitmapDrawable(context.resources, pressedBmp))
-        sld.addState(intArrayOf(), BitmapDrawable(context.resources, normalBmp))
-        return sld
+        val y = when {
+            isPressed -> 30
+            isSelected -> 15
+            else -> 0
+        }
+        return cropSprite(src, 0, y, 28, 15)
     }
 
-    // EQ & PL Toggle Buttons from TITLEBAR.BMP
-    fun getEqToggleDrawable(context: Context): Drawable? {
+    // EQ & PL Toggle Bitmaps from TITLEBAR.BMP
+    fun getEqToggleBitmap(isSelected: Boolean): Bitmap? {
         val src = titlebarBmp ?: return null
-        val normalBmp = cropSprite(src, 0, 61, 23, 12) ?: return null
-        val activeBmp = cropSprite(src, 0, 73, 23, 12) ?: normalBmp
-
-        val sld = StateListDrawable()
-        sld.addState(intArrayOf(android.R.attr.state_selected), BitmapDrawable(context.resources, activeBmp))
-        sld.addState(intArrayOf(android.R.attr.state_pressed), BitmapDrawable(context.resources, activeBmp))
-        sld.addState(intArrayOf(), BitmapDrawable(context.resources, normalBmp))
-        return sld
+        val y = if (isSelected) 73 else 61
+        return cropSprite(src, 0, y, 23, 12)
     }
 
-    fun getPlToggleDrawable(context: Context): Drawable? {
+    fun getPlToggleBitmap(isSelected: Boolean): Bitmap? {
         val src = titlebarBmp ?: return null
-        val normalBmp = cropSprite(src, 23, 61, 23, 12) ?: return null
-        val activeBmp = cropSprite(src, 23, 73, 23, 12) ?: normalBmp
-
-        val sld = StateListDrawable()
-        sld.addState(intArrayOf(android.R.attr.state_selected), BitmapDrawable(context.resources, activeBmp))
-        sld.addState(intArrayOf(android.R.attr.state_pressed), BitmapDrawable(context.resources, activeBmp))
-        sld.addState(intArrayOf(), BitmapDrawable(context.resources, normalBmp))
-        return sld
+        val y = if (isSelected) 73 else 61
+        return cropSprite(src, 23, y, 23, 12)
     }
 
     // Playlist Action Buttons from PLEDIT.BMP
-    fun getPlaylistActionDrawable(context: Context, btnIdx: Int): Drawable? {
+    fun getPlaylistActionBitmap(btnIdx: Int, isPressed: Boolean): Bitmap? {
         val src = pleditBmp ?: return null
         val (x, y, w) = when (btnIdx) {
             0 -> Triple(0, 149, 22)    // ADD
@@ -181,54 +149,52 @@ object WinampSkinManager {
             4 -> Triple(204, 149, 22)  // LIST OPTS
             else -> Triple(0, 149, 22)
         }
-        val normalBmp = cropSprite(src, x, y, w, 18) ?: return null
-        val pressedBmp = cropSprite(src, x + 23, y, w, 18) ?: normalBmp
-
-        val sld = StateListDrawable()
-        sld.addState(intArrayOf(android.R.attr.state_pressed), BitmapDrawable(context.resources, pressedBmp))
-        sld.addState(intArrayOf(), BitmapDrawable(context.resources, normalBmp))
-        return sld
+        val finalX = if (isPressed) x + 23 else x
+        return cropSprite(src, finalX, y, w, 18)
     }
 
-    // Equalizer Action Buttons from EQMAIN.BMP
-    fun getEqButtonDrawable(context: Context, btnIdx: Int): Drawable? {
+    // Equalizer Buttons from EQMAIN.BMP
+    fun getEqButtonBitmap(btnIdx: Int, isSelected: Boolean): Bitmap? {
         val src = eqmainBmp ?: return null
-        val (x, y, w, h, selX, selY) = when (btnIdx) {
-            0 -> Triple6(10, 119, 26, 12, 69, 119)   // ON
-            1 -> Triple6(36, 119, 32, 12, 95, 119)   // AUTO
-            2 -> Triple6(224, 164, 44, 12, 224, 177) // PRESETS
-            else -> Triple6(10, 119, 26, 12, 69, 119)
+        val (x, y, w, h, selX) = when (btnIdx) {
+            0 -> Triple5(10, 119, 26, 12, 69)   // ON
+            1 -> Triple5(36, 119, 32, 12, 95)   // AUTO
+            2 -> Triple5(224, 164, 44, 12, 224) // PRESETS
+            else -> Triple5(10, 119, 26, 12, 69)
         }
-        val normalBmp = cropSprite(src, x, y, w, h) ?: return null
-        val activeBmp = cropSprite(src, selX, selY, w, h) ?: normalBmp
-
-        val sld = StateListDrawable()
-        sld.addState(intArrayOf(android.R.attr.state_selected), BitmapDrawable(context.resources, activeBmp))
-        sld.addState(intArrayOf(android.R.attr.state_pressed), BitmapDrawable(context.resources, activeBmp))
-        sld.addState(intArrayOf(), BitmapDrawable(context.resources, normalBmp))
-        return sld
+        val finalX = if (isSelected && btnIdx != 2) selX else x
+        val finalY = if (isSelected && btnIdx == 2) 177 else y
+        return cropSprite(src, finalX, finalY, w, h)
     }
 
-    // EQ Silver Slider Thumb Handle from EQMAIN.BMP
-    fun getEqSliderThumb(context: Context): Drawable? {
+    // EQ Slider Thumb Handle from EQMAIN.BMP
+    fun getEqSliderThumbBitmap(): Bitmap? {
         val src = eqmainBmp ?: return null
-        val bmp = cropSprite(src, 0, 164, 11, 11) ?: cropSprite(src, 13, 164, 14, 11) ?: return null
-        return BitmapDrawable(context.resources, bmp)
+        return cropSprite(src, 0, 164, 11, 11) ?: cropSprite(src, 13, 164, 14, 11)
     }
 
     // Main Seeker Gold Thumb Handle from POSBAR.BMP
-    fun getGoldSeekerThumb(context: Context): Drawable? {
+    fun getGoldSeekerThumbBitmap(): Bitmap? {
         val src = posbarBmp ?: return null
-        val bmp = cropSprite(src, 248, 0, 29, 10) ?: return null
-        return BitmapDrawable(context.resources, bmp)
+        return cropSprite(src, 248, 0, 29, 10)
     }
 
     // Silver Slider Handle from VOLUME.BMP
-    fun getSilverSliderThumb(context: Context): Drawable? {
+    fun getSilverSliderThumbBitmap(): Bitmap? {
         val src = volumeBmp ?: return null
-        val bmp = cropSprite(src, 15, 422, 14, 11) ?: cropSprite(src, 0, 0, 14, 11) ?: return null
+        return cropSprite(src, 15, 422, 14, 11) ?: cropSprite(src, 0, 0, 14, 11)
+    }
+
+    // Drawables for compatibility if needed
+    fun getMainBackground(context: Context): Drawable? {
+        val bmp = getMainBackgroundBitmap() ?: return null
         return BitmapDrawable(context.resources, bmp)
     }
 
-    private data class Triple6(val first: Int, val second: Int, val third: Int, val fourth: Int, val fifth: Int, val sixth: Int)
+    fun getPlaylistBackground(context: Context): Drawable? {
+        val bmp = pleditBmp ?: return null
+        return BitmapDrawable(context.resources, bmp)
+    }
+
+    private data class Triple5(val first: Int, val second: Int, val third: Int, val fourth: Int, val fifth: Int)
 }

@@ -145,6 +145,7 @@ class MainActivity : AppCompatActivity() {
         playlistManager = PlaylistManager(this)
 
         setupCanvasPlayerControls()
+        setupCanvasEqualizerControls()
         setupCanvasPlaylistControls()
 
         checkPermissions()
@@ -209,8 +210,8 @@ class MainActivity : AppCompatActivity() {
             }
 
             onEqToggleListener = {
-                val vis = binding.winampEqualizerWindow.visibility
-                binding.winampEqualizerWindow.visibility = if (vis == View.VISIBLE) View.GONE else View.VISIBLE
+                val vis = binding.winampEqualizerCanvas.visibility
+                binding.winampEqualizerCanvas.visibility = if (vis == View.VISIBLE) View.GONE else View.VISIBLE
             }
 
             onPlToggleListener = {
@@ -234,6 +235,52 @@ class MainActivity : AppCompatActivity() {
                 }
             }
         }
+    }
+
+    private fun setupCanvasEqualizerControls() {
+        binding.winampEqualizerCanvas.apply {
+            onBandLevelChangedListener = { bandIdx, levelDb ->
+                playbackService?.setBandLevel(bandIdx, levelDb)
+            }
+
+            onEqEnabledChangedListener = { enabled ->
+                playbackService?.setEqEnabled(enabled)
+            }
+
+            onPresetClickListener = {
+                val popup = PopupMenu(this@MainActivity, this)
+                val presets = listOf("Flat", "Rock", "Pop", "Techno", "Dance", "Soft", "Classical", "Full Bass")
+                for (p in presets) {
+                    popup.menu.add(p)
+                }
+                popup.setOnMenuItemClickListener { item ->
+                    val name = item.title.toString()
+                    applyPresetValues(name)
+                    true
+                }
+                popup.show()
+            }
+        }
+    }
+
+    private fun applyPresetValues(presetName: String) {
+        val levels = when (presetName) {
+            "Rock" -> listOf(4, 3, 2, 0, -1, 1, 3, 4, 4, 4)
+            "Pop" -> listOf(-1, 1, 3, 4, 3, 0, -1, -1, 0, 1)
+            "Techno" -> listOf(4, 3, 0, -2, -2, 0, 3, 4, 4, 3)
+            "Dance" -> listOf(5, 4, 2, 0, 0, -2, -3, -3, 0, 0)
+            "Soft" -> listOf(2, 1, 0, -1, 0, 1, 2, 3, 4, 4)
+            "Classical" -> listOf(4, 3, 2, 2, -1, -1, 0, 2, 3, 3)
+            "Full Bass" -> listOf(6, 5, 4, 2, 0, -2, -4, -5, -6, -6)
+            else -> listOf(0, 0, 0, 0, 0, 0, 0, 0, 0, 0)
+        }
+
+        for (i in 0..9) {
+            val lvl = levels.getOrElse(i) { 0 }
+            binding.winampEqualizerCanvas.bandLevelsDb[i] = lvl
+            playbackService?.setBandLevel(i, lvl)
+        }
+        binding.winampEqualizerCanvas.postInvalidate()
     }
 
     private fun setupCanvasPlaylistControls() {
