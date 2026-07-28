@@ -73,6 +73,18 @@ object WinampSkinManager {
         return BitmapDrawable(context.resources, bmp)
     }
 
+    fun getPlaylistTopBar(context: Context): Drawable? {
+        val src = pleditBmp ?: return null
+        val sub = cropSprite(src, 0, 0, 275, 20) ?: return null
+        return BitmapDrawable(context.resources, sub)
+    }
+
+    fun getPlaylistBottomBar(context: Context): Drawable? {
+        val src = pleditBmp ?: return null
+        val sub = cropSprite(src, 0, 78, 275, 38) ?: return null
+        return BitmapDrawable(context.resources, sub)
+    }
+
     // Digital LED Digits from NUMBERS.BMP (9x13 px each)
     fun getDigitBitmap(digit: Char): Bitmap? {
         val src = numbersBmp ?: return null

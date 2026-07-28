@@ -1,6 +1,5 @@
 <?xml version="1.0" encoding="utf-8"?>
 <LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
-    xmlns:app="http://schemas.android.com/apk/res-auto"
     xmlns:tools="http://schemas.android.com/tools"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
@@ -9,252 +8,11 @@
     android:padding="4dp"
     tools:context=".MainActivity">
 
-    <!-- ==================== WINAMP MAIN WINDOW ==================== -->
-    <LinearLayout
-        android:id="@+id/winampMainWindow"
+    <!-- ==================== WINAMP MAIN PLAYER WINDOW ==================== -->
+    <com.winamp.classic.ui.WinampCanvasPlayerView
+        android:id="@+id/winampMainCanvasPlayer"
         android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:background="@drawable/bg_winamp_window"
-        android:orientation="vertical"
-        android:padding="3dp">
-
-        <!-- WINAMP Title Bar -->
-        <RelativeLayout
-            android:layout_width="match_parent"
-            android:layout_height="22dp"
-            android:background="@drawable/bg_winamp_title"
-            android:paddingStart="6dp"
-            android:paddingEnd="6dp">
-
-            <TextView
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:layout_centerInParent="true"
-                android:fontFamily="sans-serif-black"
-                android:letterSpacing="0.2"
-                android:text="WINAMP"
-                android:textColor="@color/winamp_title_gold"
-                android:textSize="12sp"
-                android:textStyle="bold" />
-
-            <TextView
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:layout_alignParentEnd="true"
-                android:layout_centerVertical="true"
-                android:text="— ▢ ✕"
-                android:textColor="#A0A8C0"
-                android:textSize="10sp" />
-        </RelativeLayout>
-
-        <!-- Main Display Box -->
-        <LinearLayout
-            android:layout_width="match_parent"
-            android:layout_height="80dp"
-            android:layout_marginTop="3dp"
-            android:orientation="horizontal">
-
-            <!-- Left: Big Green LED Time Clock View -->
-            <com.winamp.classic.ui.LedDigitView
-                android:id="@+id/ledDigitView"
-                android:layout_width="120dp"
-                android:layout_height="match_parent"
-                android:background="@drawable/bg_winamp_led" />
-
-            <!-- Right: Marquee & Format & Sliders -->
-            <LinearLayout
-                android:layout_width="0dp"
-                android:layout_height="match_parent"
-                android:layout_marginStart="4dp"
-                android:layout_weight="1"
-                android:orientation="vertical">
-
-                <!-- Marquee Display -->
-                <com.winamp.classic.ui.MarqueeTextView
-                    android:id="@+id/marqueeTextView"
-                    android:layout_width="match_parent"
-                    android:layout_height="24dp"
-                    android:background="@drawable/bg_winamp_led" />
-
-                <!-- Bitrate, kHz, Stereo/Mono -->
-                <LinearLayout
-                    android:layout_width="match_parent"
-                    android:layout_height="20dp"
-                    android:layout_marginTop="2dp"
-                    android:gravity="center_vertical"
-                    android:orientation="horizontal">
-
-                    <TextView
-                        android:id="@+id/tvBitrate"
-                        android:layout_width="wrap_content"
-                        android:layout_height="wrap_content"
-                        android:fontFamily="monospace"
-                        android:text="--- kbps"
-                        android:textColor="@color/winamp_led_green"
-                        android:textSize="11sp" />
-
-                    <TextView
-                        android:id="@+id/tvSampleRate"
-                        android:layout_width="wrap_content"
-                        android:layout_height="wrap_content"
-                        android:layout_marginStart="8dp"
-                        android:fontFamily="monospace"
-                        android:text="-- kHz"
-                        android:textColor="@color/winamp_led_green"
-                        android:textSize="11sp" />
-
-                    <View
-                        android:layout_width="0dp"
-                        android:layout_height="1dp"
-                        android:layout_weight="1" />
-
-                    <TextView
-                        android:id="@+id/tvChannels"
-                        android:layout_width="wrap_content"
-                        android:layout_height="wrap_content"
-                        android:fontFamily="monospace"
-                        android:text="stereo"
-                        android:textColor="@color/winamp_led_green"
-                        android:textSize="11sp"
-                        android:textStyle="bold" />
-                </LinearLayout>
-
-                <!-- Volume, Balance, EQ, PL Controls -->
-                <LinearLayout
-                    android:layout_width="match_parent"
-                    android:layout_height="30dp"
-                    android:gravity="center_vertical"
-                    android:orientation="horizontal">
-
-                    <SeekBar
-                        android:id="@+id/seekVolume"
-                        android:layout_width="0dp"
-                        android:layout_height="wrap_content"
-                        android:layout_weight="1"
-                        android:max="100"
-                        android:progress="80"
-                        android:progressTint="#70768C"
-                        android:thumb="@drawable/thumb_silver_slider" />
-
-                    <SeekBar
-                        android:id="@+id/seekBalance"
-                        android:layout_width="0dp"
-                        android:layout_height="wrap_content"
-                        android:layout_weight="1"
-                        android:max="100"
-                        android:progress="50"
-                        android:progressTint="#70768C"
-                        android:thumb="@drawable/thumb_silver_slider" />
-
-                    <Button
-                        android:id="@+id/btnEqToggle"
-                        android:layout_width="23dp"
-                        android:layout_height="12dp"
-                        android:background="@drawable/selector_winamp_btn" />
-
-                    <Button
-                        android:id="@+id/btnPlToggle"
-                        android:layout_width="23dp"
-                        android:layout_height="12dp"
-                        android:layout_marginStart="1dp"
-                        android:background="@drawable/selector_winamp_btn" />
-
-                    <Button
-                        android:id="@+id/btnArtToggle"
-                        android:layout_width="23dp"
-                        android:layout_height="12dp"
-                        android:layout_marginStart="1dp"
-                        android:background="@drawable/selector_winamp_btn" />
-
-                    <Button
-                        android:id="@+id/btnVisToggle"
-                        android:layout_width="23dp"
-                        android:layout_height="12dp"
-                        android:layout_marginStart="1dp"
-                        android:background="@drawable/selector_winamp_btn" />
-                </LinearLayout>
-            </LinearLayout>
-        </LinearLayout>
-
-        <!-- Main Seeker Progress Bar -->
-        <SeekBar
-            android:id="@+id/seekProgress"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:layout_marginTop="4dp"
-            android:max="1000"
-            android:progress="0"
-            android:progressTint="#E0A000"
-            android:thumb="@drawable/thumb_gold_seeker" />
-
-        <!-- Transport & Secondary Controls -->
-        <LinearLayout
-            android:layout_width="match_parent"
-            android:layout_height="36dp"
-            android:layout_marginTop="3dp"
-            android:gravity="center_vertical"
-            android:orientation="horizontal">
-
-            <Button
-                android:id="@+id/btnPrev"
-                android:layout_width="23dp"
-                android:layout_height="18dp"
-                android:background="@drawable/selector_winamp_btn" />
-
-            <Button
-                android:id="@+id/btnPlay"
-                android:layout_width="23dp"
-                android:layout_height="18dp"
-                android:layout_marginStart="2dp"
-                android:background="@drawable/selector_winamp_btn" />
-
-            <Button
-                android:id="@+id/btnPause"
-                android:layout_width="23dp"
-                android:layout_height="18dp"
-                android:layout_marginStart="2dp"
-                android:background="@drawable/selector_winamp_btn" />
-
-            <Button
-                android:id="@+id/btnStop"
-                android:layout_width="23dp"
-                android:layout_height="18dp"
-                android:layout_marginStart="2dp"
-                android:background="@drawable/selector_winamp_btn" />
-
-            <Button
-                android:id="@+id/btnNext"
-                android:layout_width="23dp"
-                android:layout_height="18dp"
-                android:layout_marginStart="2dp"
-                android:background="@drawable/selector_winamp_btn" />
-
-            <Button
-                android:id="@+id/btnEject"
-                android:layout_width="22dp"
-                android:layout_height="18dp"
-                android:layout_marginStart="4dp"
-                android:background="@drawable/selector_winamp_btn" />
-
-            <View
-                android:layout_width="0dp"
-                android:layout_height="1dp"
-                android:layout_weight="1" />
-
-            <Button
-                android:id="@+id/btnShuffle"
-                android:layout_width="46dp"
-                android:layout_height="15dp"
-                android:background="@drawable/selector_winamp_btn" />
-
-            <Button
-                android:id="@+id/btnRepeat"
-                android:layout_width="28dp"
-                android:layout_height="15dp"
-                android:layout_marginStart="2dp"
-                android:background="@drawable/selector_winamp_btn" />
-        </LinearLayout>
-    </LinearLayout>
+        android:layout_height="wrap_content" />
 
     <!-- ==================== WINAMP EQUALIZER WINDOW ==================== -->
     <com.winamp.classic.ui.WinampEqualizerView
@@ -264,116 +22,19 @@
         android:layout_marginTop="4dp" />
 
     <!-- ==================== WINAMP PLAYLIST WINDOW ==================== -->
-    <LinearLayout
-        android:id="@+id/winampPlaylistWindow"
+    <com.winamp.classic.ui.WinampCanvasPlaylistView
+        android:id="@+id/winampPlaylistCanvas"
         android:layout_width="match_parent"
         android:layout_height="0dp"
         android:layout_marginTop="4dp"
-        android:layout_weight="1"
-        android:background="@drawable/bg_winamp_window"
-        android:orientation="vertical"
-        android:padding="3dp">
+        android:layout_weight="1" />
 
-        <!-- Title Bar -->
-        <RelativeLayout
-            android:layout_width="match_parent"
-            android:layout_height="22dp"
-            android:background="@drawable/bg_winamp_title"
-            android:paddingStart="6dp"
-            android:paddingEnd="6dp">
-
-            <TextView
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:layout_centerInParent="true"
-                android:fontFamily="sans-serif-black"
-                android:letterSpacing="0.2"
-                android:text="WINAMP PLAYLIST"
-                android:textColor="@color/winamp_title_gold"
-                android:textSize="12sp"
-                android:textStyle="bold" />
-
-            <TextView
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:layout_alignParentEnd="true"
-                android:layout_centerVertical="true"
-                android:text="✕"
-                android:textColor="#A0A8C0"
-                android:textSize="10sp" />
-        </RelativeLayout>
-
-        <!-- Playlist Track List -->
-        <androidx.recyclerview.widget.RecyclerView
-            android:id="@+id/rvPlaylist"
-            android:layout_width="match_parent"
-            android:layout_height="0dp"
-            android:layout_marginTop="2dp"
-            android:layout_marginBottom="2dp"
-            android:layout_weight="1"
-            android:background="#000000"
-            android:scrollbars="vertical" />
-
-        <!-- Playlist Bottom Toolbar -->
-        <LinearLayout
-            android:layout_width="match_parent"
-            android:layout_height="28dp"
-            android:gravity="center_vertical"
-            android:orientation="horizontal">
-
-            <Button
-                android:id="@+id/btnAdd"
-                android:layout_width="22dp"
-                android:layout_height="18dp"
-                android:background="@drawable/selector_winamp_btn" />
-
-            <Button
-                android:id="@+id/btnRem"
-                android:layout_width="22dp"
-                android:layout_height="18dp"
-                android:layout_marginStart="2dp"
-                android:background="@drawable/selector_winamp_btn" />
-
-            <Button
-                android:id="@+id/btnSel"
-                android:layout_width="22dp"
-                android:layout_height="18dp"
-                android:layout_marginStart="2dp"
-                android:background="@drawable/selector_winamp_btn" />
-
-            <Button
-                android:id="@+id/btnMisc"
-                android:layout_width="22dp"
-                android:layout_height="18dp"
-                android:layout_marginStart="2dp"
-                android:background="@drawable/selector_winamp_btn" />
-
-            <TextView
-                android:id="@+id/tvTotalPlaylistTime"
-                android:layout_width="0dp"
-                android:layout_height="wrap_content"
-                android:layout_weight="1"
-                android:fontFamily="monospace"
-                android:gravity="center"
-                android:text="0:00/0:00"
-                android:textColor="@color/winamp_led_green"
-                android:textSize="11sp" />
-
-            <Button
-                android:id="@+id/btnListOpts"
-                android:layout_width="22dp"
-                android:layout_height="18dp"
-                android:background="@drawable/selector_winamp_btn" />
-        </LinearLayout>
-    </LinearLayout>
-
-    <!-- Sub-Windows: Album Art & Visualizer Mode -->
+    <!-- Milkdrop Visualizer -->
     <LinearLayout
         android:id="@+id/milkdropWindow"
         android:layout_width="match_parent"
-        android:layout_height="160dp"
-        android:layout_marginTop="4dp"
-        android:orientation="vertical">
+        android:layout_height="150dp"
+        android:layout_marginTop="4dp">
 
         <com.winamp.classic.ui.MilkdropVisualizerView
             android:id="@+id/milkdropVisualizerView"
@@ -384,7 +45,7 @@
     <LinearLayout
         android:id="@+id/winampAlbumArtWindow"
         android:layout_width="match_parent"
-        android:layout_height="160dp"
+        android:layout_height="150dp"
         android:layout_marginTop="4dp"
         android:visibility="gone">
 

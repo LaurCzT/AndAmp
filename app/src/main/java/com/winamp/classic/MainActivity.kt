@@ -12,26 +12,22 @@ import android.os.Bundle
 import android.os.IBinder
 import android.view.View
 import android.widget.PopupMenu
-import android.widget.SeekBar
 import android.widget.Toast
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.appcompat.app.AlertDialog
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.content.ContextCompat
-import androidx.recyclerview.widget.LinearLayoutManager
 import com.winamp.classic.audio.AudioMetadataHelper
 import com.winamp.classic.audio.AudioPlaybackService
 import com.winamp.classic.audio.PlaylistManager
 import com.winamp.classic.databinding.ActivityMainBinding
 import com.winamp.classic.model.Track
-import com.winamp.classic.ui.PlaylistAdapter
 import com.winamp.classic.ui.WinampSkinManager
 
 class MainActivity : AppCompatActivity() {
 
     private lateinit var binding: ActivityMainBinding
     private lateinit var playlistManager: PlaylistManager
-    private lateinit var playlistAdapter: PlaylistAdapter
 
     private var playbackService: AudioPlaybackService? = null
     private var isBound = false
@@ -44,20 +40,19 @@ class MainActivity : AppCompatActivity() {
             isBound = true
 
             playlistManager = srv.playlistManager
-            setupPlaylistAdapter()
-
             setupServiceListeners()
 
             val current = srv.currentTrack ?: playlistManager.getCurrentTrack()
             if (current != null) {
                 updateTrackDisplay(current, playlistManager.currentIndex)
                 if (srv.isPlaying) {
-                    binding.ledDigitView.isPlaying = true
-                    binding.ledDigitView.isPaused = false
+                    binding.winampMainCanvasPlayer.isPlaying = true
+                    binding.winampMainCanvasPlayer.isPaused = false
                 }
             } else {
                 updateEmptyDisplay()
             }
+            updatePlaylistState()
         }
 
         override fun onServiceDisconnected(name: ComponentName?) {
@@ -146,254 +141,131 @@ class MainActivity : AppCompatActivity() {
         binding = ActivityMainBinding.inflate(layoutInflater)
         setContentView(binding.root)
 
-        // Load classic Winamp skin BMP spritesheets
         WinampSkinManager.loadSkin(this)
-
         playlistManager = PlaylistManager(this)
-        setupPlaylistAdapter()
-        setupUIControls()
-        applySkinDrawables()
+
+        setupCanvasPlayerControls()
+        setupCanvasPlaylistControls()
+
         checkPermissions()
         startAndBindService()
         updateEmptyDisplay()
     }
 
-    private fun applySkinDrawables() {
-        // Main window frame backgrounds
-        val mainBg = WinampSkinManager.getMainBackground(this)
-        if (mainBg != null) binding.winampMainWindow.background = mainBg
+    private fun setupCanvasPlayerControls() {
+        binding.winampMainCanvasPlayer.apply {
+            onPlayClickListener = {
+                val track = playlistManager.getCurrentTrack()
+                if (track != null) {
+                    if (playbackService?.currentTrack?.id == track.id && playbackService?.isPlaying == false) {
+                        playbackService?.resume()
+                    } else {
+                        playbackService?.playTrack(track)
+                    }
+                    updateTrackDisplay(track, playlistManager.currentIndex)
+                } else {
+                    Toast.makeText(this@MainActivity, "Playlist is empty. Add music files first!", Toast.LENGTH_SHORT).show()
+                }
+            }
 
-        val plBg = WinampSkinManager.getPlaylistBackground(this)
-        if (plBg != null) binding.winampPlaylistWindow.background = plBg
+            onPauseClickListener = {
+                playbackService?.pause()
+                isPlaying = false
+                isPaused = true
+            }
 
-        // Apply BMP thumbs to seekbars
-        val goldThumb = WinampSkinManager.getGoldSeekerThumb(this)
-        if (goldThumb != null) binding.seekProgress.thumb = goldThumb
+            onStopClickListener = {
+                playbackService?.stop()
+                isPlaying = false
+                isPaused = false
+                progressRatio = 0f
+                timeText = "00:00"
+            }
 
-        val silverThumb = WinampSkinManager.getSilverSliderThumb(this)
-        if (silverThumb != null) {
-            binding.seekVolume.thumb = silverThumb
-            binding.seekBalance.thumb = silverThumb
-        }
+            onNextClickListener = {
+                val track = playlistManager.nextTrack()
+                if (track != null) {
+                    updateTrackDisplay(track, playlistManager.currentIndex)
+                    playbackService?.playTrack(track)
+                }
+            }
 
-        // Apply transport button BMP drawables and clear text overlay
-        val prevDr = WinampSkinManager.getTransportStateListDrawable(this, 0)
-        if (prevDr != null) { binding.btnPrev.background = prevDr; binding.btnPrev.text = "" }
+            onPrevClickListener = {
+                val track = playlistManager.previousTrack()
+                if (track != null) {
+                    updateTrackDisplay(track, playlistManager.currentIndex)
+                    playbackService?.playTrack(track)
+                }
+            }
 
-        val playDr = WinampSkinManager.getTransportStateListDrawable(this, 1)
-        if (playDr != null) { binding.btnPlay.background = playDr; binding.btnPlay.text = "" }
+            onEjectClickListener = { showAddPopupMenu(this) }
+            onShuffleToggleListener = {
+                playlistManager.isShuffle = isShuffle
+                Toast.makeText(this@MainActivity, "Shuffle: ${if (isShuffle) "ON" else "OFF"}", Toast.LENGTH_SHORT).show()
+            }
+            onRepeatToggleListener = {
+                playlistManager.isRepeat = isRepeat
+                Toast.makeText(this@MainActivity, "Repeat: ${if (isRepeat) "ON" else "OFF"}", Toast.LENGTH_SHORT).show()
+            }
 
-        val pauseDr = WinampSkinManager.getTransportStateListDrawable(this, 2)
-        if (pauseDr != null) { binding.btnPause.background = pauseDr; binding.btnPause.text = "" }
+            onEqToggleListener = {
+                val vis = binding.winampEqualizerWindow.visibility
+                binding.winampEqualizerWindow.visibility = if (vis == View.VISIBLE) View.GONE else View.VISIBLE
+            }
 
-        val stopDr = WinampSkinManager.getTransportStateListDrawable(this, 3)
-        if (stopDr != null) { binding.btnStop.background = stopDr; binding.btnStop.text = "" }
+            onPlToggleListener = {
+                val vis = binding.winampPlaylistCanvas.visibility
+                binding.winampPlaylistCanvas.visibility = if (vis == View.VISIBLE) View.GONE else View.VISIBLE
+            }
 
-        val nextDr = WinampSkinManager.getTransportStateListDrawable(this, 4)
-        if (nextDr != null) { binding.btnNext.background = nextDr; binding.btnNext.text = "" }
+            onVolumeChangeListener = { volRatio ->
+                playbackService?.setVolume(volRatio)
+            }
 
-        val ejectDr = WinampSkinManager.getTransportStateListDrawable(this, 5)
-        if (ejectDr != null) { binding.btnEject.background = ejectDr; binding.btnEject.text = "" }
+            onBalanceChangeListener = { balRatio ->
+                val bal = (balRatio - 0.5f) * 2f
+                playbackService?.setBalance(bal)
+            }
 
-        // Apply Shuffle & Repeat BMP drawables
-        val shufDr = WinampSkinManager.getShuffleStateListDrawable(this)
-        if (shufDr != null) { binding.btnShuffle.background = shufDr; binding.btnShuffle.text = "" }
-
-        val repDr = WinampSkinManager.getRepeatStateListDrawable(this)
-        if (repDr != null) { binding.btnRepeat.background = repDr; binding.btnRepeat.text = "" }
-
-        // Apply EQ & PL toggle BMP drawables
-        val eqToggleDr = WinampSkinManager.getEqToggleDrawable(this)
-        if (eqToggleDr != null) { binding.btnEqToggle.background = eqToggleDr; binding.btnEqToggle.text = "" }
-
-        val plToggleDr = WinampSkinManager.getPlToggleDrawable(this)
-        if (plToggleDr != null) { binding.btnPlToggle.background = plToggleDr; binding.btnPlToggle.text = "" }
-
-        // Apply Playlist Action Button BMP drawables
-        val addDr = WinampSkinManager.getPlaylistActionDrawable(this, 0)
-        if (addDr != null) { binding.btnAdd.background = addDr; binding.btnAdd.text = "" }
-
-        val remDr = WinampSkinManager.getPlaylistActionDrawable(this, 1)
-        if (remDr != null) { binding.btnRem.background = remDr; binding.btnRem.text = "" }
-
-        val selDr = WinampSkinManager.getPlaylistActionDrawable(this, 2)
-        if (selDr != null) { binding.btnSel.background = selDr; binding.btnSel.text = "" }
-
-        val miscDr = WinampSkinManager.getPlaylistActionDrawable(this, 3)
-        if (miscDr != null) { binding.btnMisc.background = miscDr; binding.btnMisc.text = "" }
-
-        val listOptsDr = WinampSkinManager.getPlaylistActionDrawable(this, 4)
-        if (listOptsDr != null) { binding.btnListOpts.background = listOptsDr; binding.btnListOpts.text = "" }
-    }
-
-    private fun setupPlaylistAdapter() {
-        playlistAdapter = PlaylistAdapter(
-            tracks = playlistManager.tracks,
-            selectedIndex = playlistManager.currentIndex
-        ) { clickedIndex ->
-            val track = playlistManager.selectTrack(clickedIndex)
-            track?.let {
-                updateTrackDisplay(it, clickedIndex)
-                playbackService?.playTrack(it)
+            onSeekChangeListener = { ratio ->
+                playbackService?.currentTrack?.let { track ->
+                    val targetMs = (ratio * track.durationMs).toLong()
+                    playbackService?.seekTo(targetMs)
+                }
             }
         }
+    }
 
-        binding.rvPlaylist.apply {
-            layoutManager = LinearLayoutManager(this@MainActivity)
-            adapter = playlistAdapter
+    private fun setupCanvasPlaylistControls() {
+        binding.winampPlaylistCanvas.apply {
+            onAddClickListener = { showAddPopupMenu(this) }
+
+            onRemClickListener = {
+                val currIndex = playlistManager.currentIndex
+                if (currIndex in playlistManager.tracks.indices) {
+                    val removedTrack = playlistManager.tracks[currIndex]
+                    playlistManager.removeTrack(currIndex)
+                    updatePlaylistState()
+                    Toast.makeText(this@MainActivity, "Removed: ${removedTrack.title}", Toast.LENGTH_SHORT).show()
+                }
+            }
+
+            onSelClickListener = { showSelPopupMenu(this) }
+            onMiscClickListener = { showMiscPopupMenu(this) }
+            onListOptsClickListener = { showListOptsPopupMenu(this) }
+
+            onTrackSelectedListener = { clickedIdx ->
+                val track = playlistManager.selectTrack(clickedIdx)
+                track?.let {
+                    updateTrackDisplay(it, clickedIdx)
+                    playbackService?.playTrack(it)
+                }
+            }
         }
 
         playlistManager.onPlaylistChangedListener = {
             updatePlaylistState()
         }
-    }
-
-    private fun setupUIControls() {
-        // Main Transport Controls
-        binding.btnPlay.setOnClickListener {
-            val track = playlistManager.getCurrentTrack()
-            if (track != null) {
-                if (playbackService?.currentTrack?.id == track.id && playbackService?.isPlaying == false) {
-                    playbackService?.resume()
-                } else {
-                    playbackService?.playTrack(track)
-                }
-                updateTrackDisplay(track, playlistManager.currentIndex)
-            } else {
-                Toast.makeText(this, "Playlist is empty. Add music files first!", Toast.LENGTH_SHORT).show()
-            }
-        }
-
-        binding.btnPause.setOnClickListener {
-            playbackService?.pause()
-            binding.ledDigitView.isPlaying = false
-            binding.ledDigitView.isPaused = true
-        }
-
-        binding.btnStop.setOnClickListener {
-            playbackService?.stop()
-            binding.ledDigitView.isPlaying = false
-            binding.ledDigitView.isPaused = false
-            binding.seekProgress.progress = 0
-            binding.ledDigitView.timeText = "00:00"
-        }
-
-        binding.btnNext.setOnClickListener {
-            val track = playlistManager.nextTrack()
-            if (track != null) {
-                playlistAdapter.setSelectedIndex(playlistManager.currentIndex)
-                binding.rvPlaylist.scrollToPosition(playlistManager.currentIndex)
-                updateTrackDisplay(track, playlistManager.currentIndex)
-                playbackService?.playTrack(track)
-            }
-        }
-
-        binding.btnPrev.setOnClickListener {
-            val track = playlistManager.previousTrack()
-            if (track != null) {
-                playlistAdapter.setSelectedIndex(playlistManager.currentIndex)
-                binding.rvPlaylist.scrollToPosition(playlistManager.currentIndex)
-                updateTrackDisplay(track, playlistManager.currentIndex)
-                playbackService?.playTrack(track)
-            }
-        }
-
-        binding.btnEject.setOnClickListener { showAddPopupMenu(it) }
-
-        // Playlist Actions
-        binding.btnAdd.setOnClickListener { showAddPopupMenu(it) }
-
-        binding.btnRem.setOnClickListener {
-            val currIndex = playlistManager.currentIndex
-            if (currIndex in playlistManager.tracks.indices) {
-                val removedTrack = playlistManager.tracks[currIndex]
-                playlistManager.removeTrack(currIndex)
-                updatePlaylistState()
-                Toast.makeText(this, "Removed: ${removedTrack.title}", Toast.LENGTH_SHORT).show()
-            } else {
-                Toast.makeText(this, "No track selected to remove", Toast.LENGTH_SHORT).show()
-            }
-        }
-
-        binding.btnSel.setOnClickListener { showSelPopupMenu(it) }
-        binding.btnMisc.setOnClickListener { showMiscPopupMenu(it) }
-        binding.btnListOpts.setOnClickListener { showListOptsPopupMenu(it) }
-
-        // Window Visibility Toggles (EQ, PL, ART, VIS)
-        binding.btnEqToggle.setOnClickListener {
-            val vis = binding.winampEqualizerWindow.visibility
-            binding.winampEqualizerWindow.visibility = if (vis == View.VISIBLE) View.GONE else View.VISIBLE
-        }
-
-        binding.btnPlToggle.setOnClickListener {
-            val vis = binding.winampPlaylistWindow.visibility
-            binding.winampPlaylistWindow.visibility = if (vis == View.VISIBLE) View.GONE else View.VISIBLE
-        }
-
-        binding.btnArtToggle.setOnClickListener {
-            val vis = binding.winampAlbumArtWindow.visibility
-            binding.winampAlbumArtWindow.visibility = if (vis == View.VISIBLE) View.GONE else View.VISIBLE
-        }
-
-        binding.btnVisToggle.setOnClickListener {
-            val vis = binding.milkdropWindow.visibility
-            binding.milkdropWindow.visibility = if (vis == View.VISIBLE) View.GONE else View.VISIBLE
-        }
-
-        // Equalizer Controls Listener
-        binding.winampEqualizerWindow.onBandLevelChangedListener = { bandIdx, levelDb ->
-            playbackService?.setBandLevel(bandIdx, levelDb)
-        }
-
-        binding.winampEqualizerWindow.onEqEnabledChangedListener = { enabled ->
-            playbackService?.setEqEnabled(enabled)
-        }
-
-        // Toggles
-        binding.btnShuffle.setOnClickListener {
-            playlistManager.isShuffle = !playlistManager.isShuffle
-            binding.btnShuffle.isSelected = playlistManager.isShuffle
-            Toast.makeText(this, "Shuffle: ${if (playlistManager.isShuffle) "ON" else "OFF"}", Toast.LENGTH_SHORT).show()
-        }
-
-        binding.btnRepeat.setOnClickListener {
-            playlistManager.isRepeat = !playlistManager.isRepeat
-            binding.btnRepeat.isSelected = playlistManager.isRepeat
-            Toast.makeText(this, "Repeat: ${if (playlistManager.isRepeat) "ON" else "OFF"}", Toast.LENGTH_SHORT).show()
-        }
-
-        // Sliders
-        binding.seekVolume.setOnSeekBarChangeListener(object : SeekBar.OnSeekBarChangeListener {
-            override fun onProgressChanged(seekBar: SeekBar?, progress: Int, fromUser: Boolean) {
-                if (fromUser) playbackService?.setVolume(progress / 100f)
-            }
-            override fun onStartTrackingTouch(seekBar: SeekBar?) {}
-            override fun onStopTrackingTouch(seekBar: SeekBar?) {}
-        })
-
-        binding.seekBalance.setOnSeekBarChangeListener(object : SeekBar.OnSeekBarChangeListener {
-            override fun onProgressChanged(seekBar: SeekBar?, progress: Int, fromUser: Boolean) {
-                if (fromUser) {
-                    val bal = (progress - 50) / 50f
-                    playbackService?.setBalance(bal)
-                }
-            }
-            override fun onStartTrackingTouch(seekBar: SeekBar?) {}
-            override fun onStopTrackingTouch(seekBar: SeekBar?) {}
-        })
-
-        binding.seekProgress.setOnSeekBarChangeListener(object : SeekBar.OnSeekBarChangeListener {
-            override fun onProgressChanged(seekBar: SeekBar?, progress: Int, fromUser: Boolean) {
-                if (fromUser) {
-                    playbackService?.currentTrack?.let { track ->
-                        val targetMs = (progress / 1000f * track.durationMs).toLong()
-                        playbackService?.seekTo(targetMs)
-                    }
-                }
-            }
-            override fun onStartTrackingTouch(seekBar: SeekBar?) {}
-            override fun onStopTrackingTouch(seekBar: SeekBar?) {}
-        })
     }
 
     private fun showAddPopupMenu(anchor: View) {
@@ -427,8 +299,7 @@ class MainActivity : AppCompatActivity() {
                 "Current" -> {
                     val curr = playlistManager.currentIndex
                     if (curr in playlistManager.tracks.indices) {
-                        binding.rvPlaylist.scrollToPosition(curr)
-                        playlistAdapter.setSelectedIndex(curr)
+                        binding.winampPlaylistCanvas.selectedIndex = curr
                     }
                 }
             }
@@ -511,7 +382,9 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun updatePlaylistState() {
-        playlistAdapter.updateTracks(playlistManager.tracks, playlistManager.currentIndex)
+        binding.winampPlaylistCanvas.updateTracks(playlistManager.tracks, playlistManager.currentIndex)
+        binding.winampPlaylistCanvas.totalTimeText = "${playlistManager.getTotalDurationFormatted()}"
+
         val currentTrack = playlistManager.getCurrentTrack()
         if (currentTrack != null) {
             updateTrackDisplay(currentTrack, playlistManager.currentIndex)
@@ -522,40 +395,37 @@ class MainActivity : AppCompatActivity() {
 
     private fun updateTrackDisplay(track: Track, index: Int) {
         val displayName = track.getDisplayName(index + 1)
-        binding.marqueeTextView.text = displayName
-        binding.tvBitrate.text = "${track.bitrateKbps} kbps"
-        binding.tvSampleRate.text = "${track.sampleRateHz / 1000} kHz"
-        binding.tvChannels.text = if (track.isStereo) "stereo" else "mono"
-        binding.tvTotalPlaylistTime.text = "${track.getFormattedDuration()}/${playlistManager.getTotalDurationFormatted()}"
+        binding.winampMainCanvasPlayer.marqueeText = displayName
+        binding.winampMainCanvasPlayer.bitrateText = "${track.bitrateKbps} kbps"
+        binding.winampMainCanvasPlayer.sampleRateText = "${track.sampleRateHz / 1000} kHz"
+        binding.winampMainCanvasPlayer.isStereo = track.isStereo
 
         val artBitmap = AudioMetadataHelper.loadAlbumArt(this, track.uri)
         binding.winampAlbumArtView.setAlbumArt(artBitmap)
     }
 
     private fun updateEmptyDisplay() {
-        binding.marqueeTextView.text = "WINAMP 5.662 (NO TRACK LOADED)"
-        binding.tvBitrate.text = "--- kbps"
-        binding.tvSampleRate.text = "-- kHz"
-        binding.tvChannels.text = "stereo"
-        binding.ledDigitView.timeText = "00:00"
-        binding.ledDigitView.isPlaying = false
-        binding.ledDigitView.isPaused = false
-        binding.seekProgress.progress = 0
-        binding.tvTotalPlaylistTime.text = "0:00/0:00"
+        binding.winampMainCanvasPlayer.marqueeText = "WINAMP 5.662 (NO TRACK LOADED)"
+        binding.winampMainCanvasPlayer.bitrateText = "---"
+        binding.winampMainCanvasPlayer.sampleRateText = "--"
+        binding.winampMainCanvasPlayer.isStereo = true
+        binding.winampMainCanvasPlayer.timeText = "00:00"
+        binding.winampMainCanvasPlayer.isPlaying = false
+        binding.winampMainCanvasPlayer.isPaused = false
+        binding.winampMainCanvasPlayer.progressRatio = 0f
         binding.winampAlbumArtView.setAlbumArt(null)
     }
 
     private fun setupServiceListeners() {
         playbackService?.onProgressUpdateListener = { currentMs, totalMs ->
             if (totalMs > 0) {
-                val progressRatio = (currentMs.toFloat() / totalMs) * 1000
-                binding.seekProgress.progress = progressRatio.toInt()
+                binding.winampMainCanvasPlayer.progressRatio = currentMs.toFloat() / totalMs
             }
             val seconds = (currentMs / 1000) % 60
             val minutes = (currentMs / 1000) / 60
-            binding.ledDigitView.timeText = String.format("%02d:%02d", minutes, seconds)
-            binding.ledDigitView.isPlaying = true
-            binding.ledDigitView.isPaused = false
+            binding.winampMainCanvasPlayer.timeText = String.format("%02d:%02d", minutes, seconds)
+            binding.winampMainCanvasPlayer.isPlaying = true
+            binding.winampMainCanvasPlayer.isPaused = false
         }
 
         playbackService?.onWaveformUpdateListener = { bytes ->
@@ -566,7 +436,11 @@ class MainActivity : AppCompatActivity() {
             if (playlistManager.isRepeat) {
                 playbackService?.currentTrack?.let { playbackService?.playTrack(it) }
             } else {
-                binding.btnNext.performClick()
+                val nextTrk = playlistManager.nextTrack()
+                if (nextTrk != null) {
+                    updateTrackDisplay(nextTrk, playlistManager.currentIndex)
+                    playbackService?.playTrack(nextTrk)
+                }
             }
         }
     }
