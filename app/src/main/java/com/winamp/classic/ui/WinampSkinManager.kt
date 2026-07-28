@@ -141,16 +141,27 @@ object WinampSkinManager {
     // Playlist Action Buttons from PLEDIT.BMP
     fun getPlaylistActionBitmap(btnIdx: Int, isPressed: Boolean): Bitmap? {
         val src = pleditBmp ?: return null
-        val (x, y, w) = when (btnIdx) {
-            0 -> Triple(0, 149, 25)    // ADD
-            1 -> Triple(54, 149, 25)   // REM
-            2 -> Triple(104, 149, 23)  // SEL
-            3 -> Triple(154, 149, 25)  // MISC
-            4 -> Triple(204, 149, 45)  // LIST OPTS
-            else -> Triple(0, 149, 25)
+        if (!isPressed) {
+            val (x, w) = when (btnIdx) {
+                0 -> Pair(14, 25)   // ADD unpressed
+                1 -> Pair(43, 25)   // REM unpressed
+                2 -> Pair(72, 23)   // SEL unpressed
+                3 -> Pair(99, 25)   // MISC unpressed
+                4 -> Pair(216, 45)  // LIST OPTS unpressed
+                else -> Pair(14, 25)
+            }
+            return cropSprite(src, x, 88, w, 18)
+        } else {
+            val (x, w) = when (btnIdx) {
+                0 -> Pair(0, 25)     // ADD pressed
+                1 -> Pair(54, 25)    // REM pressed
+                2 -> Pair(104, 23)   // SEL pressed
+                3 -> Pair(154, 25)   // MISC pressed
+                4 -> Pair(204, 45)   // LIST OPTS pressed
+                else -> Pair(0, 25)
+            }
+            return cropSprite(src, x, 149, w, 18) ?: cropSprite(src, x, 88, w, 18)
         }
-        val finalX = if (isPressed) x + w else x
-        return cropSprite(src, finalX, y, w, 18)
     }
 
     // Equalizer Buttons from EQMAIN.BMP

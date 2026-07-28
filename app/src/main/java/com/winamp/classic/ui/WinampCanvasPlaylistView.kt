@@ -109,7 +109,7 @@ class WinampCanvasPlaylistView @JvmOverloads constructor(
             canvas.drawBitmap(bottomBmp, null, RectF(0f, bottomY, w, h), null)
         }
 
-        // 5. Draw Playlist Action Buttons ONLY when pressed
+        // 5. Draw Playlist Action Buttons explicitly from cropped Bitmaps
         val btnY = bottomY + (10f * (w / 275f))
         val btnH = 18f * (w / 275f)
 
@@ -117,14 +117,13 @@ class WinampCanvasPlaylistView @JvmOverloads constructor(
         val btnWList = listOf(25f, 25f, 23f, 25f, 45f)
 
         for (i in 0..4) {
-            if (pressedBtnIdx == i) {
-                val btnBmp = WinampSkinManager.getPlaylistActionBitmap(i, true)
-                if (btnBmp != null) {
-                    val bx = btnXList[i] * scaleX
-                    val bw = btnWList[i] * scaleX
-                    val dest = RectF(bx, btnY, bx + bw, btnY + btnH)
-                    canvas.drawBitmap(btnBmp, null, dest, null)
-                }
+            val isPressed = pressedBtnIdx == i
+            val btnBmp = WinampSkinManager.getPlaylistActionBitmap(i, isPressed)
+            if (btnBmp != null) {
+                val bx = btnXList[i] * scaleX
+                val bw = btnWList[i] * scaleX
+                val dest = RectF(bx, btnY, bx + bw, btnY + btnH)
+                canvas.drawBitmap(btnBmp, null, dest, null)
             }
         }
 
