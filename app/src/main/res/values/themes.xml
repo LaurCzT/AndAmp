@@ -6,5 +6,17 @@
         <item name="colorAccent">@color/winamp_led_green</item>
         <item name="android:windowBackground">@color/winamp_bg</item>
         <item name="android:statusBarColor">@color/winamp_bg</item>
+        <item name="buttonStyle">@style/WinampButton</item>
+    </style>
+
+    <style name="WinampButton" parent="Widget.AppCompat.Button">
+        <item name="android:minWidth">0dp</item>
+        <item name="android:minHeight">0dp</item>
+        <item name="android:insetTop">0dp</item>
+        <item name="android:insetBottom">0dp</item>
+        <item name="android:insetLeft">0dp</item>
+        <item name="android:insetRight">0dp</item>
+        <item name="android:padding">0dp</item>
+        <item name="android:stateListAnimator">@null</item>
     </style>
 </resources>

@@ -159,11 +159,16 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun applySkinDrawables() {
+        // Main window frame backgrounds
+        val mainBg = WinampSkinManager.getMainBackground(this)
+        if (mainBg != null) binding.winampMainWindow.background = mainBg
+
+        val plBg = WinampSkinManager.getPlaylistBackground(this)
+        if (plBg != null) binding.winampPlaylistWindow.background = plBg
+
         // Apply BMP thumbs to seekbars
         val goldThumb = WinampSkinManager.getGoldSeekerThumb(this)
-        if (goldThumb != null) {
-            binding.seekProgress.thumb = goldThumb
-        }
+        if (goldThumb != null) binding.seekProgress.thumb = goldThumb
 
         val silverThumb = WinampSkinManager.getSilverSliderThumb(this)
         if (silverThumb != null) {
@@ -171,24 +176,54 @@ class MainActivity : AppCompatActivity() {
             binding.seekBalance.thumb = silverThumb
         }
 
-        // Apply transport button BMP drawables
-        val prevDr = WinampSkinManager.getTransportButtonDrawable(this, 0, false)
-        if (prevDr != null) binding.btnPrev.background = prevDr
+        // Apply transport button BMP drawables and clear text overlay
+        val prevDr = WinampSkinManager.getTransportStateListDrawable(this, 0)
+        if (prevDr != null) { binding.btnPrev.background = prevDr; binding.btnPrev.text = "" }
 
-        val playDr = WinampSkinManager.getTransportButtonDrawable(this, 1, false)
-        if (playDr != null) binding.btnPlay.background = playDr
+        val playDr = WinampSkinManager.getTransportStateListDrawable(this, 1)
+        if (playDr != null) { binding.btnPlay.background = playDr; binding.btnPlay.text = "" }
 
-        val pauseDr = WinampSkinManager.getTransportButtonDrawable(this, 2, false)
-        if (pauseDr != null) binding.btnPause.background = pauseDr
+        val pauseDr = WinampSkinManager.getTransportStateListDrawable(this, 2)
+        if (pauseDr != null) { binding.btnPause.background = pauseDr; binding.btnPause.text = "" }
 
-        val stopDr = WinampSkinManager.getTransportButtonDrawable(this, 3, false)
-        if (stopDr != null) binding.btnStop.background = stopDr
+        val stopDr = WinampSkinManager.getTransportStateListDrawable(this, 3)
+        if (stopDr != null) { binding.btnStop.background = stopDr; binding.btnStop.text = "" }
 
-        val nextDr = WinampSkinManager.getTransportButtonDrawable(this, 4, false)
-        if (nextDr != null) binding.btnNext.background = nextDr
+        val nextDr = WinampSkinManager.getTransportStateListDrawable(this, 4)
+        if (nextDr != null) { binding.btnNext.background = nextDr; binding.btnNext.text = "" }
 
-        val ejectDr = WinampSkinManager.getTransportButtonDrawable(this, 5, false)
-        if (ejectDr != null) binding.btnEject.background = ejectDr
+        val ejectDr = WinampSkinManager.getTransportStateListDrawable(this, 5)
+        if (ejectDr != null) { binding.btnEject.background = ejectDr; binding.btnEject.text = "" }
+
+        // Apply Shuffle & Repeat BMP drawables
+        val shufDr = WinampSkinManager.getShuffleStateListDrawable(this)
+        if (shufDr != null) { binding.btnShuffle.background = shufDr; binding.btnShuffle.text = "" }
+
+        val repDr = WinampSkinManager.getRepeatStateListDrawable(this)
+        if (repDr != null) { binding.btnRepeat.background = repDr; binding.btnRepeat.text = "" }
+
+        // Apply EQ & PL toggle BMP drawables
+        val eqToggleDr = WinampSkinManager.getEqToggleDrawable(this)
+        if (eqToggleDr != null) { binding.btnEqToggle.background = eqToggleDr; binding.btnEqToggle.text = "" }
+
+        val plToggleDr = WinampSkinManager.getPlToggleDrawable(this)
+        if (plToggleDr != null) { binding.btnPlToggle.background = plToggleDr; binding.btnPlToggle.text = "" }
+
+        // Apply Playlist Action Button BMP drawables
+        val addDr = WinampSkinManager.getPlaylistActionDrawable(this, 0)
+        if (addDr != null) { binding.btnAdd.background = addDr; binding.btnAdd.text = "" }
+
+        val remDr = WinampSkinManager.getPlaylistActionDrawable(this, 1)
+        if (remDr != null) { binding.btnRem.background = remDr; binding.btnRem.text = "" }
+
+        val selDr = WinampSkinManager.getPlaylistActionDrawable(this, 2)
+        if (selDr != null) { binding.btnSel.background = selDr; binding.btnSel.text = "" }
+
+        val miscDr = WinampSkinManager.getPlaylistActionDrawable(this, 3)
+        if (miscDr != null) { binding.btnMisc.background = miscDr; binding.btnMisc.text = "" }
+
+        val listOptsDr = WinampSkinManager.getPlaylistActionDrawable(this, 4)
+        if (listOptsDr != null) { binding.btnListOpts.background = listOptsDr; binding.btnListOpts.text = "" }
     }
 
     private fun setupPlaylistAdapter() {
@@ -494,7 +529,7 @@ class MainActivity : AppCompatActivity() {
         binding.tvTotalPlaylistTime.text = "${track.getFormattedDuration()}/${playlistManager.getTotalDurationFormatted()}"
 
         val artBitmap = AudioMetadataHelper.loadAlbumArt(this, track.uri)
-        binding.winampAlbumArtWindow.setAlbumArt(artBitmap)
+        binding.winampAlbumArtView.setAlbumArt(artBitmap)
     }
 
     private fun updateEmptyDisplay() {
@@ -507,7 +542,7 @@ class MainActivity : AppCompatActivity() {
         binding.ledDigitView.isPaused = false
         binding.seekProgress.progress = 0
         binding.tvTotalPlaylistTime.text = "0:00/0:00"
-        binding.winampAlbumArtWindow.setAlbumArt(null)
+        binding.winampAlbumArtView.setAlbumArt(null)
     }
 
     private fun setupServiceListeners() {
